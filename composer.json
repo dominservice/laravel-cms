@@ -1,0 +1,36 @@
+{
+    "name": "dominservice/laravel-cms",
+    "type": "library",
+    "description": "Library for PAYU Marketplace",
+    "keywords": ["laravel", "cms", "manager"],
+    "homepage": "https://github.com/dominservice/laravel-cms",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "dominservice",
+            "email": "biuro@dso.biz.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.0",
+        "laravel/framework": "^9|^10",
+        "astrotomic/laravel-translatable": "^11.12"
+    },
+    "require-all": true,
+    "autoload": {
+        "psr-4": {
+            "Dominservice\\LaravelCms\\": "src/"
+        }
+    },
+    "extra": {
+        "component": "package",
+        "frameworks": ["Laravel 9.x", "Laravel 10.x"],
+        "laravel": {
+            "providers": [
+                "Dominservice\\LaravelCms\\ServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable"
+}
