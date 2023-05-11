@@ -7,12 +7,24 @@ use Illuminate\Database\Eloquent\Model;
 
 class CategoryTranslation extends Model
 {
-    protected $table = 'docs_category_langs';
+    protected $fillable = [
+        'slug',
+        'name',
+        'description',
+        'meta_title',
+        'meta_keywords',
+        'meta_description',
+    ];
 
     public $timestamps = false;
-
-    public function lang()
+    
+    /**
+     * Get the table associated with the model.
+     *
+     * @return string
+     */
+    public function getTable()
     {
-        return $this->hasOne(\App\Models\Lang::class, 'lang_id');
+        return config('cms.tables.category_translations');
     }
 }

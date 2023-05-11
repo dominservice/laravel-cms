@@ -3,16 +3,40 @@
 namespace Dominservice\LaravelCms\Models;
 
 
-use App\Traits\UsesUuid;
+use Astrotomic\Translatable\Translatable;
+use Dominservice\LaravelCms\Traits\HasUuidPrimary;
+use Dominservice\LaravelCms\Traits\TranslatableLocales;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Category extends Model
 {
-    use SoftDeletes;
-    use UsesUuid;
+    use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes;
 
-    protected $table = 'docs_categories';
+    protected $fillable = [
+        'type',
+        'parent_uuid',
+        'status',
+    ];
+
+    public $translatedAttributes = [
+        'slug',
+        'name',
+        'description',
+        'meta_title',
+        'meta_keywords',
+        'meta_description',
+    ];
+    
+    /**
+     * Get the table associated with the model.
+     *
+     * @return string
+     */
+    public function getTable()
+    {
+        return config('cms.tables.categories');
+    }
 
     /**
      * @param $value
@@ -20,7 +44,7 @@ class Category extends Model
      */
     public function getCreatedAtAttribute($value): string
     {
-        return \Carbon\Carbon::parse($value)->format(config('global.date_format') . ' ' . config('global.time_format'));
+        return \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format'));
     }
 
     /**
@@ -29,70 +53,51 @@ class Category extends Model
      */
     public function getUpdatedAtAttribute($value)
     {
-        return \Carbon\Carbon::parse($value)->format(config('global.date_format') . ' ' . config('global.time_format'));
+        return \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format'));
     }
 
     public function articles()
     {
-        return $this->belongsToMany(\App\Models\Docs\Article::class
-            , 'docs_article_categories'
-            , 'category_id'
-            , 'version_id'
+        return $this->belongsToMany(\Dominservice\LaravelCms\Models\Content::class
+            , config('cms.tables.content_categories')
+            , 'category_uuid'
+            , 'version_uuid'
         );
     }
 
-    // Define Eloquent parent child relationship
-    public function scopeToTree()
-    {
-        $categories = $this->with('lang')->where(function ($q) {
-            $q->where('parent_id', 0)
-                ->orWhere('parent_id', null);
-        })->get();
-
-        return $this->nestable($categories);
-    }
-
-    // Define Eloquent parent child relationship
     public function parent()
     {
-        return $this->belongsTo(self::class, 'parent_id')->with('lang');
+        return $this->belongsTo(static::class,'parent_uuid');
     }
 
-    // for first level child this will works enough
     public function children()
     {
-        return $this->hasMany(self::class, 'parent_id');
+        return $this->hasMany(static::class, 'parent_uuid');
     }
 
     // and here is the trick for nestable child.
-    public static function nestable($categories)
-    {
-        foreach ($categories as $cid=>$category) {
+    public static function nestable($categories) {
+        foreach ($categories as $category) {
             if (!$category->children->isEmpty()) {
                 $category->children = self::nestable($category->children);
             }
-            $categories[$cid]->name = !empty($category->lang->name) ? $category->lang->name : '';
-            $categories[$cid]->slug = !empty($category->lang->slug) ? $category->lang->slug : '';
         }
 
         return $categories;
     }
 
-    public function allLangs()
+    public function allChildren()
     {
-        return $this->hasMany(CategoryTranslation::class, 'category_id');
+        return $this->children()->with('allChildren');
     }
 
-    public function lang()
+    public static function allToTree()
     {
-        return $this->hasOne(CategoryTranslation::class, 'category_id')
-            ->where('lang_id', config('app.lang.id'));
+        return self::nestable(self::allRoot('index'));
     }
 
-    public function getLang($lang_id)
+    public static function allRoot($permissions = null)
     {
-        return CategoryTranslation::where('category_id', $this->id)
-            ->where('lang_id', $lang_id)
-            ->first();
+        return self::whereNull('parent_uuid')->can($permissions)->get();
     }
 }

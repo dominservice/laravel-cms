@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    
+
     /**
      * Run the migrations.
      *
@@ -14,24 +14,24 @@ return new class extends Migration
      */
     public function up()
     {
-        if (!Schema::hasTable('cms_categories') ) {
-            Schema::create('cms_categories', function (Blueprint $table) {
+        if (!Schema::hasTable(config('cms.tables.categories')) ) {
+            Schema::create(config('cms.tables.categories'), function (Blueprint $table) {
                 $table->uuid('uuid')->primary();
                 $table->string('type'); // section | block | faq |...
-                $table->integer('parent_id')->nullable();
+                $table->uuid('parent_uuid')->nullable();
                 $table->unsignedTinyInteger('status')->default(0);
                 $table->timestamps();
                 $table->softDeletes();
             });
         }
 
-        if (!Schema::hasTable('cms_category_translations') ) {
-            Schema::create('cms_category_translations', function (Blueprint $table) {
+        if (!Schema::hasTable(config('cms.tables.category_translations')) ) {
+            Schema::create(config('cms.tables.category_translations'), function (Blueprint $table) {
                 $table->id();
                 $table->uuid('category_uuid');
                 $table->foreign('category_uuid')
                     ->references('uuid')
-                    ->on('cms_categories')
+                    ->on(config('cms.tables.categories'))
                     ->onDelete('cascade');
                 $table->string('locale')->index();
                 $table->string('slug');
@@ -44,8 +44,8 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('cms_articles') ) {
-            Schema::create('cms_articles', function (Blueprint $table) {
+        if (!Schema::hasTable(config('cms.tables.contents')) ) {
+            Schema::create(config('cms.tables.contents'), function (Blueprint $table) {
                 $table->uuid('uuid')->primary();
                 $table->string('type'); // section | block | faq |...
                 $table->unsignedTinyInteger('status')->default(0);
@@ -54,13 +54,13 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('cms_article_translations') ) {
-            Schema::create('cms_article_translations', function (Blueprint $table) {
+        if (!Schema::hasTable(config('cms.tables.content_translations')) ) {
+            Schema::create(config('cms.tables.content_translations'), function (Blueprint $table) {
                 $table->id();
-                $table->uuid('article_uuid');
-                $table->foreign('article_uuid')
+                $table->uuid('content_uuid');
+                $table->foreign('content_uuid')
                     ->references('uuid')
-                    ->on('cms_articles')
+                    ->on(config('cms.tables.contents'))
                     ->onDelete('cascade');
                 $table->string('locale')->index();
                 $table->string('slug');
@@ -70,22 +70,22 @@ return new class extends Migration
                 $table->string('meta_title')->nullable();
                 $table->string('meta_keywords')->nullable();
                 $table->string('meta_description')->nullable();
-                $table->unique(['article_uuid','locale']);
+                $table->unique(['content_uuid','locale']);
             });
         }
 
-        if (!Schema::hasTable('cms_article_categories') ) {
-            Schema::create('cms_article_categories', function (Blueprint $table) {
+        if (!Schema::hasTable(config('cms.tables.content_categories')) ) {
+            Schema::create(config('cms.tables.content_categories'), function (Blueprint $table) {
                 $table->id();
-                $table->uuid('article_uuid');
-                $table->foreign('article_uuid')
+                $table->uuid('content_uuid');
+                $table->foreign('content_uuid')
                     ->references('uuid')
-                    ->on('cms_articles')
+                    ->on(config('cms.tables.contents'))
                     ->onDelete('cascade');
                 $table->uuid('category_uuid');
                 $table->foreign('category_uuid')
                     ->references('uuid')
-                    ->on('cms_categories')
+                    ->on(config('cms.tables.categories'))
                     ->onDelete('cascade');
             });
         }
@@ -98,10 +98,10 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::drop('cms_article_categories');
-        Schema::drop('cms_article_translations');
-        Schema::drop('cms_articles');
-        Schema::drop('cms_category_translations');
-        Schema::drop('cms_categories');
+        Schema::dropIfExists(config('cms.tables.content_categories'));
+        Schema::dropIfExists(config('cms.tables.content_translations'));
+        Schema::dropIfExists(config('cms.tables.contents'));
+        Schema::dropIfExists(config('cms.tables.category_translations'));
+        Schema::dropIfExists(config('cms.tables.categories'));
     }
 };
