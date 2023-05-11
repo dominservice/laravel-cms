@@ -1,7 +1,7 @@
 {
     "name": "dominservice/laravel-cms",
     "type": "library",
-    "description": "Library for PAYU Marketplace",
+    "description": "Laravel CMS Backend",
     "keywords": ["laravel", "cms", "manager"],
     "homepage": "https://github.com/dominservice/laravel-cms",
     "license": "MIT",
