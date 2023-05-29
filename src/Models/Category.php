@@ -56,7 +56,7 @@ class Category extends Model
         return \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format'));
     }
 
-    public function articles()
+    public function contents()
     {
         return $this->belongsToMany(\Dominservice\LaravelCms\Models\Content::class
             , config('cms.tables.content_categories')

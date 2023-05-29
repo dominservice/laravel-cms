@@ -78,7 +78,7 @@ class Content extends Model
     {
         return $this->belongsToMany(\Dominservice\LaravelCms\Models\Category::class
             , config('cms.tables.content_categories')
-            , 'article_uuid'
+            , 'content_uuid'
             , 'category_uuid'
         );
     }

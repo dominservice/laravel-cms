@@ -40,31 +40,30 @@ class ContentTranslation extends Model
                 $uuids = !empty($params->values->uuid) ? explode(',', $params->values->uuid) : false;
                 $catIds = !empty($params->values->cat_id) ? explode(',', $params->values->cat_id) : false;
 
-                $articles = Article::where('status', 1)
+                $contents = Content::where('status', 1)
                     ->with('lang')
-                    ->where('uuid', '!=', $this->article_uuid)
+                    ->where('uuid', '!=', $this->content_uuid)
                     ->where('type', $params->type);
 
                 if ($ids) {
-                    $articles->whereIn('id', $ids);
+                    $contents->whereIn('id', $ids);
                 }
 
                 if ($uuids) {
-                    $articles->whereIn('uuid', $uuids);
+                    $contents->whereIn('uuid', $uuids);
                 }
 
                 if ($catIds) {
-                    $articles->whereCategories($catIds);
+                    $contents->whereCategories($catIds);
                 }
 
-                $articles = $articles->get();
+                $contents = $contents->get();
 
-                foreach ($articles as $article) {
-                    if (!empty($article->lang->description)) {
-                        $article->lang->extendByShortCodes() ;
-                        $title = '<h3>'. $article->lang->name .'</h3>';
-                        $content = $article->lang->description;
-                        $extend[] = $title . ($params->type == 'faq' ? "\t" : '') . $content;
+                foreach ($contents as $content) {
+                    if (!empty($content->lang->description)) {
+                        $content->lang->extendByShortCodes() ;
+                        $title = '<h3>'. $content->lang->name .'</h3>';
+                        $extend[] = $title . ($params->type == 'faq' ? "\t" : '') . $content->lang->description;
                     }
                 }
             }
