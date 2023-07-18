@@ -27,6 +27,10 @@ class Category extends Model
         'meta_keywords',
         'meta_description',
     ];
+
+    protected $appends = [
+        'avatar_path'
+    ];
     
     /**
      * Get the table associated with the model.
@@ -36,6 +40,15 @@ class Category extends Model
     public function getTable()
     {
         return config('cms.tables.categories');
+    }
+
+    public function getAvatarPathAttribute()
+    {
+        if(\Storage::disk(config('cms.disks.category'))->exists('category_' . $this->attributes['uuid'])) {
+            return \Storage::disk(config('cms.disks.category'))->url('category_' . $this->attributes['uuid']);
+        }
+
+        return null;
     }
 
     /**

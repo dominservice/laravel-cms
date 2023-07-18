@@ -30,6 +30,10 @@ class Content extends Model
         'meta_keywords',
         'meta_description',
     ];
+    
+    protected $appends = [
+        'avatar_path'
+    ];
 
     /**
      * Get the table associated with the model.
@@ -39,6 +43,15 @@ class Content extends Model
     public function getTable()
     {
         return config('cms.tables.contents');
+    }
+
+    public function getAvatarPathAttribute()
+    {
+        if(\Storage::disk(config('cms.disks.content'))->exists('content_' . $this->attributes['uuid'])) {
+            return \Storage::disk(config('cms.disks.content'))->url('content_' . $this->attributes['uuid']);
+        }
+        
+        return null;
     }
 
     /**

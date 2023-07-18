@@ -10,5 +10,10 @@ return [
         'contents' => 'cms_contents',
         'content_translations' => 'cms_contents_translations',
         'content_categories' => 'cms_content_categories',
+    ],
+    
+    'disks' => [
+        'category' => 'public',
+        'content' => 'public',
     ]
 ];
