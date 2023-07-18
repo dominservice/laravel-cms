@@ -47,8 +47,10 @@ class Content extends Model
 
     public function getAvatarPathAttribute()
     {
-        if(\Storage::disk(config('cms.disks.content'))->exists('content_' . $this->attributes['uuid'])) {
-            return \Storage::disk(config('cms.disks.content'))->url('content_' . $this->attributes['uuid']);
+        $avatar = 'content_' . $this->attributes['uuid'] . '.' . config('cms.avatar.extension');
+
+        if(\Storage::disk(config('cms.disks.content'))->exists($avatar)) {
+            return \Storage::disk(config('cms.disks.content'))->url($avatar);
         }
         
         return null;

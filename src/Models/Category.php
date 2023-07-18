@@ -31,7 +31,7 @@ class Category extends Model
     protected $appends = [
         'avatar_path'
     ];
-    
+
     /**
      * Get the table associated with the model.
      *
@@ -44,8 +44,10 @@ class Category extends Model
 
     public function getAvatarPathAttribute()
     {
-        if(\Storage::disk(config('cms.disks.category'))->exists('category_' . $this->attributes['uuid'])) {
-            return \Storage::disk(config('cms.disks.category'))->url('category_' . $this->attributes['uuid']);
+        $avatar = 'category_' . $this->attributes['uuid'] . '.' . config('cms.avatar.extension');
+        
+        if(\Storage::disk(config('cms.disks.category'))->exists($avatar)) {
+            return \Storage::disk(config('cms.disks.category'))->url($avatar);
         }
 
         return null;
