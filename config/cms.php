@@ -15,5 +15,9 @@ return [
     'disks' => [
         'category' => 'public',
         'content' => 'public',
-    ]
+    ],
+
+    'avatar' => [
+        'extension' => 'webp',
+    ],
 ];
