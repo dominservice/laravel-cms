@@ -42,6 +42,16 @@ class Category extends Model
         return config('cms.tables.categories');
     }
 
+    /**
+     * Get the parent id key name.
+     *
+     * @return  string
+     */
+    public function getParentIdName()
+    {
+        return 'parent_uuid';
+    }
+
     public function getAvatarPathAttribute()
     {
         $avatar = 'category_' . $this->attributes['uuid'] . '.' . config('cms.avatar.extension');

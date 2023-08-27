@@ -3,6 +3,7 @@
 return [
     'date_format' => 'd/m/Y',
     'time_format' => 'H:i',
+    'url_route' => null,
 
     'tables' => [
         'categories' => 'cms_categories',
@@ -10,6 +11,7 @@ return [
         'contents' => 'cms_contents',
         'content_translations' => 'cms_contents_translations',
         'content_categories' => 'cms_content_categories',
+        'redirects' => 'cms_redirects',
     ],
     
     'disks' => [

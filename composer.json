@@ -15,7 +15,8 @@
     "require": {
         "php": ">=8.0",
         "laravel/framework": "^9|^10",
-        "astrotomic/laravel-translatable": "^11.12"
+        "astrotomic/laravel-translatable": "^11.12",
+        "kalnoy/nestedset": "^6.0"
     },
     "require-all": true,
     "autoload": {

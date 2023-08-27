@@ -15,6 +15,8 @@ class ServiceProvider extends BaseServiceProvider
      */
     protected $defer = false;
 
+    private  $lpMigration = 0;
+
     public function boot(Filesystem $filesystem) {
         $this->publishes([
             __DIR__ . '/../config/cms.php' => config_path('cms.php'),
@@ -22,6 +24,10 @@ class ServiceProvider extends BaseServiceProvider
 
         $this->publishes([
             __DIR__.'/../database/migrations/create_cms_tables.php.stub' => $this->getMigrationFileName($filesystem, 'create_cms_tables'),
+            __DIR__.'/../database/migrations/add_columns_content_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_columns_content_table'),
+            __DIR__.'/../database/migrations/create_redirects_table.php.stub' => $this->getMigrationFileName($filesystem, 'create_redirects_table'),
+            __DIR__.'/../database/migrations/add_columns_category_content_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_columns_category_content_table'),
+            __DIR__.'/../database/migrations/add_columns_categoryies_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_columns_categoryies_table'),
         ], 'migrations');
     }
 
@@ -56,7 +62,8 @@ class ServiceProvider extends BaseServiceProvider
      */
     protected function getMigrationFileName(Filesystem $filesystem, $name): string
     {
-        $timestamp = date('Y_m_d_His');
+                $this->lpMigration++;
+        $timestamp = date('Y_m_d_Hi0'.$this->lpMigration);
 
         return Collection::make($this->app->databasePath().DIRECTORY_SEPARATOR.'migrations'.DIRECTORY_SEPARATOR)
             ->flatMap(function ($path) use ($filesystem, $name) {

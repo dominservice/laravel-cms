@@ -30,7 +30,7 @@ class Content extends Model
         'meta_keywords',
         'meta_description',
     ];
-    
+
     protected $appends = [
         'avatar_path'
     ];
@@ -52,7 +52,7 @@ class Content extends Model
         if(\Storage::disk(config('cms.disks.content'))->exists($avatar)) {
             return \Storage::disk(config('cms.disks.content'))->url($avatar);
         }
-        
+
         return null;
     }
 
@@ -96,5 +96,13 @@ class Content extends Model
             , 'content_uuid'
             , 'category_uuid'
         );
+    }
+
+    public function rootCategory()
+    {
+        return $this->belongsTo(\Dominservice\LaravelCms\Models\ContentCategoryRoot::class
+            , 'uuid'
+            , 'content_uuid'
+        )->where('is_root', 1);
     }
 }
