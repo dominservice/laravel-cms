@@ -10,6 +10,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Kalnoy\Nestedset\NodeTrait;
 
+/**
+ * @property int $id
+ * @property string $type
+ * @property null|string $parent_uuid
+ * @property bool $status
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ * @property null|\Carbon\Carbon $deleted_at
+ */
 class Category extends Model
 {
     use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes, NodeTrait;
