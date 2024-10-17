@@ -8,16 +8,10 @@ use Illuminate\Support\ServiceProvider as BaseServiceProvider;
 
 class ServiceProvider extends BaseServiceProvider
 {
-    /**
-     * Indicates if loading of the provider is deferred.
-     *
-     * @var bool
-     */
-    protected $defer = false;
+    private int $lpMigration = 0;
 
-    private  $lpMigration = 0;
-
-    public function boot(Filesystem $filesystem) {
+    public function boot(Filesystem $filesystem): void
+    {
         $this->publishes([
             __DIR__ . '/../config/cms.php' => config_path('cms.php'),
         ], 'config');
@@ -31,12 +25,7 @@ class ServiceProvider extends BaseServiceProvider
         ], 'migrations');
     }
 
-    /**
-     * Register the service provider.
-     *
-     * @return void
-     */
-    public function register()
+    public function register(): void
     {
         $this->mergeConfigFrom(
             __DIR__.'/../config/cms.php',
@@ -44,31 +33,14 @@ class ServiceProvider extends BaseServiceProvider
         );
     }
 
-    /**
-     * Get the services provided by the provider.
-     *
-     * @return array
-     */
-    public function provides()
-    {
-        return array();
-    }
-
-    /**
-     * Returns existing migration file if found, else uses the current timestamp.
-     *
-     * @param Filesystem $filesystem
-     * @return string
-     */
-    protected function getMigrationFileName(Filesystem $filesystem, $name): string
+    protected function getMigrationFileName(Filesystem $filesystem, string $name): string
     {
         $this->lpMigration++;
-        $timestamp = date('Y_m_d_Hi'.str_pad($this->lpMigration, 10, "0", STR_PAD_RIGHT));
+        $timestamp = now()->format('Y_m_d_Hi') . str_pad((string)$this->lpMigration, 10, "0", STR_PAD_RIGHT);
 
-        return Collection::make($this->app->databasePath().DIRECTORY_SEPARATOR.'migrations'.DIRECTORY_SEPARATOR)
-            ->flatMap(function ($path) use ($filesystem, $name) {
-                return $filesystem->glob($path.'*'.$name.'.php');
-            })->push($this->app->databasePath()."/migrations/{$timestamp}_{$name}.php")
+        return Collection::make($this->app->databasePath() . DIRECTORY_SEPARATOR . 'migrations' . DIRECTORY_SEPARATOR)
+            ->flatMap(fn($path) => $filesystem->glob($path . '*' . $name . '.php'))
+            ->push($this->app->databasePath() . "/migrations/{$timestamp}_{$name}.php")
             ->first();
     }
 }

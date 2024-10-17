@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class ContentCategoryRoot extends Pivot
 {
-//    protected $table    = 'customertype_material';
     protected $fillable = ['is_root', 'category_uuid', 'content_uuid'];
 
     /**

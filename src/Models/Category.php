@@ -6,8 +6,10 @@ namespace Dominservice\LaravelCms\Models;
 use Astrotomic\Translatable\Translatable;
 use Dominservice\LaravelCms\Traits\HasUuidPrimary;
 use Dominservice\LaravelCms\Traits\TranslatableLocales;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Kalnoy\Nestedset\NodeTrait;
 
 /**
@@ -73,22 +75,21 @@ class Category extends Model
         return null;
     }
 
-    /**
-     * @param $value
-     * @return string
-     */
-    public function getCreatedAtAttribute($value): string
+
+    public function createdAt(): Attribute
     {
-        return \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format'));
+        return Attribute::make(
+            get: fn ($value) => \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format')),
+            set: fn ($value) => $value,
+        );
     }
 
-    /**
-     * @param $value
-     * @return string
-     */
-    public function getUpdatedAtAttribute($value)
+    public function updatedAt(): Attribute
     {
-        return \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format'));
+        return Attribute::make(
+            get: fn ($value) => \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format')),
+            set: fn ($value) => $value,
+        );
     }
 
     public function contents()

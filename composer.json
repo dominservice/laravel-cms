@@ -14,8 +14,8 @@
     ],
     "require": {
         "php": ">=8.0",
-        "laravel/framework": "^9|^10",
-        "astrotomic/laravel-translatable": "^11.12",
+        "laravel/framework": "^9|^10|^11",
+        "astrotomic/laravel-translatable": "^11.13",
         "kalnoy/nestedset": "^6.0"
     },
     "require-all": true,
@@ -26,7 +26,7 @@
     },
     "extra": {
         "component": "package",
-        "frameworks": ["Laravel 9.x", "Laravel 10.x"],
+        "frameworks": ["Laravel 9.x", "Laravel 10.x", "Laravel 11.x"],
         "laravel": {
             "providers": [
                 "Dominservice\\LaravelCms\\ServiceProvider"

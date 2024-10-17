@@ -1,50 +1,37 @@
 <?php
 
-namespace Dominservice\LaravelCms\Helpers;
-
-
 class Shortcode
 {
-    protected $types = [
-        'section',
-        'block',
-        'faq'
-    ];
+    protected array $types = ['section', 'block', 'faq'];
+    protected ?string $type = null;
+    protected array $codes = [];
+    protected string $content = '';
 
-    protected $type = null;
-
-    protected $codes = [];
-
-    protected $content = '';
-
-    public function __construct($content, $type = null)
+    public function __construct(string $content, ?string $type = null)
     {
         $this->type = $type;
         $this->content = $content;
         $shortcodeNames = $this->type ?: $this->getShortcodeNames();
-        $regex =  "@\\[!!(\\[?)($shortcodeNames)(?![\\w-])([^\\]\\/]*(?:\\/(?!\\])[^\\]\\/]*)*?)(!!\\]?)@";
-        preg_match_all($regex, $this->content,$codeMatches);
+        $regex = "@\\[!!(\\[?)($shortcodeNames)(?![\\w-])([^\\]\\/]*(?:\\/(?!\\])[^\\]\\/]*)*?)(!!\\]?)@";
+        preg_match_all($regex, $this->content, $codeMatches);
 
         if (!empty($codeMatches[0])) {
-            foreach ($codeMatches[0] as $lp=>$match) {
-                $this->codes[$codeMatches[0][$lp]]['type'] = $codeMatches[2][$lp];
-                $this->codes[$codeMatches[0][$lp]]['values'] = $this->parseAttributes($codeMatches[3][$lp]);
+            foreach ($codeMatches[0] as $lp => $match) {
                 $this->codes[$codeMatches[0][$lp]] = (object)[
-                    'type' =>$codeMatches[2][$lp],
+                    'type' => $codeMatches[2][$lp],
                     'values' => (object)$this->parseAttributes($codeMatches[3][$lp]),
                 ];
             }
         }
     }
 
-    protected function parseAttributes($text)
+    protected function parseAttributes(string $text): array
     {
-        // decode attribute values
         $text = htmlspecialchars_decode($text, ENT_QUOTES);
         $text = str_replace('|', ' ', $text);
         $attributes = [];
         $pattern = '/(\w+)\s*=\s*"([^"]*)"(?:\s|$)|(\w+)\s*=\s*\'([^\']*)\'(?:\s|$)|(\w+)\s*=\s*([^\s\'"]+)(?:\s|$)|"([^"]*)"(?:\s|$)|(\S+)(?:\s|$)/';
-        // Match
+
         if (preg_match_all($pattern, preg_replace('/[\x{00a0}\x{200b}]+/u', " ", $text), $match, PREG_SET_ORDER)) {
             foreach ($match as $m) {
                 if (!empty($m[1])) {
@@ -62,21 +49,17 @@ class Shortcode
         } else {
             $attributes = ltrim($text);
         }
-        // return attributes
+
         return is_array($attributes) ? $attributes : [$attributes];
     }
 
-    /**
-     * Get shortcode names
-     *
-     * @return string
-     */
-    protected function getShortcodeNames()
+    protected function getShortcodeNames(): string
     {
         return implode('|', array_map('preg_quote', $this->types));
     }
 
-    public function getCodesParams() {
+    public function getCodesParams(): array
+    {
         return $this->codes;
     }
 }
