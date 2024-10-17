@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CategoryTranslation extends Model
 {
+    use \Dominservice\LaravelCms\Traits\Slugable;
+
     protected $fillable = [
         'slug',
         'name',
@@ -17,6 +19,8 @@ class CategoryTranslation extends Model
     ];
 
     public $timestamps = false;
+
+    protected static bool $canUpdateName = true;
     
     /**
      * Get the table associated with the model.

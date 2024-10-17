@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ContentTranslation extends Model
 {
+    use \Dominservice\LaravelCms\Traits\Slugable;
+
     public $fillable = [
         'slug',
         'name',
@@ -18,6 +20,8 @@ class ContentTranslation extends Model
     ];
 
     public $timestamps = false;
+
+    protected static bool $canUpdateName = true;
 
     /**
      * Get the table associated with the model.
