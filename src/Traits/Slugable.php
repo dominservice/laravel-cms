@@ -4,7 +4,6 @@ namespace Dominservice\LaravelCms\Traits;
 
 use Dominservice\LaravelCms\Models\Redirect;
 use Illuminate\Support\Str;
-use function App\Traits\str;
 
 trait Slugable
 {
