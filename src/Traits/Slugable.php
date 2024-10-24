@@ -13,7 +13,7 @@ trait Slugable
 
         //while creating/inserting item into db
         static::creating(function ($item) {
-            $key = $item->gwtColumnForSlug();
+            $key = $item->getColumnForSlug();
             $item->slug = Str::limit(Str::slug($item->$key, '-', 'en', ['@' => 'at', '&' => 'and']), 255, '');
 
             if ($item->getKeyType() === 'ulid' || in_array('ulid', $item->getFillable())) {
@@ -46,7 +46,7 @@ trait Slugable
         }
     }
 
-    protected function gwtColumnForSlug()
+    protected function getColumnForSlug()
     {
         if (isset($this->columnForSlug)) {
             return $this->columnForSlug;
