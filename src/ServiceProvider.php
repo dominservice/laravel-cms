@@ -36,7 +36,7 @@ class ServiceProvider extends BaseServiceProvider
     protected function getMigrationFileName(Filesystem $filesystem, string $name): string
     {
         $this->lpMigration++;
-        $timestamp = now()->format('Y_m_d_Hi') . str_pad((string)$this->lpMigration, 6, "0", STR_PAD_RIGHT);
+        $timestamp = now()->format('Y_m_d_Hi') . str_pad((string)$this->lpMigration, 2, "0", STR_PAD_RIGHT);
 
         return Collection::make($this->app->databasePath() . DIRECTORY_SEPARATOR . 'migrations' . DIRECTORY_SEPARATOR)
             ->flatMap(fn($path) => $filesystem->glob($path . '*' . $name . '.php'))

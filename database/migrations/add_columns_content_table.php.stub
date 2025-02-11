@@ -11,14 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create(config('cms.tables.redirects'), function (Blueprint $table) {
-            $table->id();
-            $table->text('url_from');
-            $table->text('url_to');
-            $table->unsignedInteger('code')->default(301);
-            $table->timestamp('active_at');
-            $table->timestamps();
-        });
+           if (Schema::hasTable(config('cms.tables.contents')) ) {
+                   Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
+                       $table->boolean('is_nofollow')->default(0);
+                   });
+               }
     }
 
     /**
@@ -26,6 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists(config('cms.tables.redirects'));
+          if (Schema::hasTable(config('cms.tables.contents')) ) {
+                    Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
+                        $table->dropColumn('is_nofollow');
+                    });
+                }
     }
 };
