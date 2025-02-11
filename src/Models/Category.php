@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Kalnoy\Nestedset\NodeTrait;
 
 /**
- * @property int $id
+ * @property string $uuid
  * @property string $type
  * @property null|string $parent_uuid
  * @property bool $status

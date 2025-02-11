@@ -4,14 +4,27 @@ namespace Dominservice\LaravelCms\Models;
 
 
 use Astrotomic\Translatable\Translatable;
-use DateTimeInterface;
 use Dominservice\LaravelCms\Traits\HasUuidPrimary;
 use Dominservice\LaravelCms\Traits\TranslatableLocales;
-use Hootlex\Moderation\Moderatable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property string $uuid
+ * @property string $status
+ * @property bool $is_nofollow
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property string $slug
+ * @property string $name
+ * @property string $sub_name
+ * @property string $description
+ * @property string $meta_title
+ * @property string $meta_keywords
+ * @property string $meta_description
+ */
 class Content extends Model
 {
     use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes;
@@ -19,6 +32,7 @@ class Content extends Model
     protected $fillable = [
         'type',
         'status',
+        'is_nofollow',
     ];
 
     public $translatedAttributes = [
