@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create(config('cms.tables.content_video'), function (Blueprint $table) {
-            $table->ulid();
+            $table->id();
             $table->foreignUuid('content_uuid')->constrained(config('cms.tables.contents'), 'uuid')->cascadeOnDelete();
             $table->string('name');
         });
