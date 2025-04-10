@@ -9,6 +9,8 @@ class ContentVideo extends Model
 {
     protected $fillable = ['content_uuid', 'name'];
 
+    public $timestamps = false;
+
     /**
      * Get the table associated with the model.
      *
@@ -16,6 +18,6 @@ class ContentVideo extends Model
      */
     public function getTable()
     {
-        return config('cms.tables.content_videos');
+        return config('cms.tables.content_video');
     }
 }
