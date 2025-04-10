@@ -22,6 +22,7 @@ class ServiceProvider extends BaseServiceProvider
             __DIR__.'/../database/migrations/create_redirects_table.php.stub' => $this->getMigrationFileName($filesystem, 'create_redirects_table'),
             __DIR__.'/../database/migrations/add_columns_category_content_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_columns_category_content_table'),
             __DIR__.'/../database/migrations/add_columns_categoryies_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_columns_categoryies_table'),
+            __DIR__.'/../database/migrations/create_video_table.php.stub' => $this->getMigrationFileName($filesystem, 'create_video_table'),
         ], 'migrations');
     }
 

@@ -24,6 +24,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $meta_title
  * @property string $meta_keywords
  * @property string $meta_description
+ *
+ * @property string $avatar_path
+ * @property string $video_path
  */
 class Content extends Model
 {
@@ -46,7 +49,8 @@ class Content extends Model
     ];
 
     protected $appends = [
-        'avatar_path'
+        'avatar_path',
+        'video_path'
     ];
 
     /**
@@ -65,6 +69,15 @@ class Content extends Model
 
         if(\Storage::disk(config('cms.disks.content'))->exists($avatar)) {
             return \Storage::disk(config('cms.disks.content'))->url($avatar);
+        }
+
+        return null;
+    }
+
+    public function getVideoPathAttribute()
+    {
+        if ($this->video && \Storage::disk(config('cms.disks.content_video'))->exists($this->video->name)) {
+            return \Storage::disk(config('cms.disks.content_video'))->url($this->video->name);
         }
 
         return null;
@@ -114,9 +127,12 @@ class Content extends Model
 
     public function rootCategory()
     {
-        return $this->belongsTo(\Dominservice\LaravelCms\Models\ContentCategoryRoot::class
-            , 'uuid'
-            , 'content_uuid'
-        )->where('is_root', 1);
+        return $this->belongsTo(\Dominservice\LaravelCms\Models\ContentCategoryRoot::class, 'uuid', 'content_uuid')
+            ->where('is_root', 1);
+    }
+
+    public function video()
+    {
+        return $this->belongsTo(\Dominservice\LaravelCms\Models\ContentVideo::class, 'uuid', 'content_uuid');
     }
 }
