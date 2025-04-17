@@ -1,5 +1,7 @@
 <?php
 
+namespace Dominservice\LaravelCms\Helpers;
+
 class Shortcode
 {
     protected array $types = ['section', 'block', 'faq'];

@@ -13,6 +13,7 @@ class ContentTranslation extends Model
         'slug',
         'name',
         'sub_name',
+        'short_description',
         'description',
         'meta_title',
         'meta_keywords',
