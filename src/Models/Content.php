@@ -113,7 +113,7 @@ class Content extends Model
         }
 
         $this->whereHas('categories', function ($q) use ($categories) {
-            $q->whereIn('uuid', $categories)->orWhereIn('slug', $categories);
+            $q->whereIn(config('cms.tables.categories') .'.uuid', $categories)->orWhereIn('slug', $categories);
         });
     }
 
