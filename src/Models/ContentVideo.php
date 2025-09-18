@@ -3,8 +3,15 @@
 namespace Dominservice\LaravelCms\Models;
 
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property string $content_uuid
+ * @property string $name
+ */
 class ContentVideo extends Model
 {
     protected $fillable = ['content_uuid', 'name'];

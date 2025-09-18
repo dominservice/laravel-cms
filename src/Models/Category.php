@@ -4,6 +4,7 @@ namespace Dominservice\LaravelCms\Models;
 
 
 use Astrotomic\Translatable\Translatable;
+use Dominservice\LaravelCms\Helpers\Name;
 use Dominservice\LaravelCms\Traits\HasUuidPrimary;
 use Dominservice\LaravelCms\Traits\TranslatableLocales;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -71,10 +72,30 @@ class Category extends Model
 
     public function getAvatarPathAttribute()
     {
-        $avatar = 'category_' . $this->attributes['uuid'] . '.' . config('cms.avatar.extension');
-        
+        $avatar = Name::generateAvatarName($this, 'category_');
+
         if (Storage::disk(config('cms.disks.category'))->exists($avatar)) {
             return Storage::disk(config('cms.disks.category'))->url($avatar);
+        }
+
+        return null;
+    }
+
+    public function getSmallAvatarPathAttribute()
+    {
+        $avatar = Name::generateAvatarName($this, 'category_small_');
+        if(\Storage::disk(config('cms.disks.category'))->exists($avatar)) {
+            return \Storage::disk(config('cms.disks.category'))->url($avatar);
+        }
+
+        return null;
+    }
+
+    public function getThumbAvatarPathAttribute()
+    {
+        $avatar = Name::generateAvatarName($this, 'category_thumb_');
+        if(\Storage::disk(config('cms.disks.category'))->exists($avatar)) {
+            return \Storage::disk(config('cms.disks.category'))->url($avatar);
         }
 
         return null;

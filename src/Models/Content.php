@@ -4,6 +4,8 @@ namespace Dominservice\LaravelCms\Models;
 
 
 use Astrotomic\Translatable\Translatable;
+use Carbon\Carbon;
+use Dominservice\LaravelCms\Helpers\Name;
 use Dominservice\LaravelCms\Traits\HasUuidPrimary;
 use Dominservice\LaravelCms\Traits\TranslatableLocales;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -12,7 +14,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property string $uuid
- * @property string $status
+ * @property string $type
+ * @property bool $status
  * @property bool $is_nofollow
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -51,6 +54,8 @@ class Content extends Model
 
     protected $appends = [
         'avatar_path',
+        'small_avatar_path',
+        'thumb_avatar_path',
         'video_path'
     ];
 
@@ -66,8 +71,27 @@ class Content extends Model
 
     public function getAvatarPathAttribute()
     {
-        $avatar = 'content_' . $this->attributes['uuid'] . '.' . config('cms.avatar.extension');
+        $avatar = Name::generateAvatarName($this, 'content_');
+        if(\Storage::disk(config('cms.disks.content'))->exists($avatar)) {
+            return \Storage::disk(config('cms.disks.content'))->url($avatar);
+        }
 
+        return null;
+    }
+
+    public function getSmallAvatarPathAttribute()
+    {
+        $avatar = Name::generateAvatarName($this, 'content_small_');
+        if(\Storage::disk(config('cms.disks.content'))->exists($avatar)) {
+            return \Storage::disk(config('cms.disks.content'))->url($avatar);
+        }
+
+        return null;
+    }
+
+    public function getThumbAvatarPathAttribute()
+    {
+        $avatar = Name::generateAvatarName($this, 'content_thumb_');
         if(\Storage::disk(config('cms.disks.content'))->exists($avatar)) {
             return \Storage::disk(config('cms.disks.content'))->url($avatar);
         }
