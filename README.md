@@ -1,4 +1,8 @@
 # Dominservice Laravel CMS
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/dominservice/laravel-cms.svg?style=flat-square)](https://packagist.org/packages/dominservice/laravel-cms)
+[![Total Downloads](https://img.shields.io/packagist/dt/dominservice/laravel-cms.svg?style=flat-square)](https://packagist.org/packages/dominservice/laravel-cms)
+[![License](https://img.shields.io/packagist/l/dominservice/laravel-cms.svg?style=flat-square)](https://packagist.org/packages/dominservice/laravel-cms)
+
 
 Kompletny pakiet CMS dla aplikacji Laravel (9–12), dostarczający struktury danych dla treści i kategorii (wielojęzyczność, drzewo kategorii), metadanych plików (avatar/dodatkowe), prostego wideo oraz elastycznej konfiguracji rozmiarów plików. Dokument ten zawiera pełną instrukcję instalacji, konfiguracji i użycia wraz z przykładami.
 
@@ -324,6 +328,44 @@ Media::uploadModelResponsiveImages(
     - desktop_thumb_avatar_path
 
 Uwaga: Konfiguracja rozmiarów w config/cms.php może nadal zawierać klucz 'original', ale helper go zignoruje. Zalecane jest pozostawienie tylko potrzebnych rozmiarów z parametrami.
+
+Upload z jednym plikiem domyślnym i nadpisaniami dla wybranych rozmiarów (default + overrides)
+Czasami potrzebujesz przypisać inne źródło tylko do części rozmiarów (np. osobny obraz dla thumb), a dla reszty użyć jednego, wspólnego pliku. Służy do tego metoda:
+
+```php
+use Dominservice\LaravelCms\Helpers\Media;
+
+Media::uploadModelImageWithDefaults(
+    $model, // Content lub Category
+    [
+        'default' => request()->file('img_default'), // bazowy dla wszystkich rozmiarów
+        'thumb'   => request()->file('img_thumb'),   // opcjonalne nadpisanie tylko dla 'thumb'
+        // 'small' => request()->file('img_small'),  // inne opcjonalne nadpisania
+    ],
+    'avatar',          // kind
+    null,              // type (opcjonalnie)
+    null,              // onlySizes (opcjonalnie)
+    true               // replaceExisting
+);
+```
+
+Zasady działania:
+- Dla każdego rozmiaru zdefiniowanego w configu (poza 'original') helper wybiera: źródło z klucza o nazwie rozmiaru (jeśli podane), w przeciwnym wypadku źródło z klucza 'default'.
+- Jeśli dla danego rozmiaru nie ma ani nadpisania, ani 'default' – rozmiar jest pomijany.
+- Co najmniej jeden wariant musi zostać wygenerowany, w przeciwnym razie zostanie rzucony InvalidArgumentException.
+- Wpisy 'original' (null) w konfiguracji są ignorowane – nie zapisujemy oryginału.
+
+Przykład minimalny (domyślny dla wszystkich poza thumb):
+```php
+Media::uploadModelImageWithDefaults($content, [
+  'default' => request()->file('img_all'),
+  'thumb'   => request()->file('img_only_thumb'),
+], 'avatar');
+```
+
+Po zapisie:
+- $model->avatar_path zwróci URL rozmiaru zdefiniowanego w display (np. 'large').
+- Dostęp do konkretnych rozmiarów: $model->{size}_avatar_path (np. $model->thumb_avatar_path, $model->small_avatar_path).
 
 Walidacja i obsługa błędów
 - W razie błędnej konfiguracji lub nieudanego przetwarzania rzucony zostanie InvalidArgumentException. Możesz zabezpieczyć wywołanie:

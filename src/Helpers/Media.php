@@ -334,4 +334,84 @@ class Media
 
         return $record;
     }
+
+    /**
+     * Upload with default + per-size overrides in a single call.
+     * Example sources:
+     *  [
+     *    'default' => UploadedFile|string, // used for all sizes unless overridden
+     *    'thumb'   => UploadedFile|string, // optional: override only for 'thumb'
+     *    'small'   => UploadedFile|string, // optional: override only for 'small'
+     *  ]
+     * Behavior:
+     *  - Ignores 'original' (null) size entries in config (no original file stored)
+     *  - For each configured size key (except 'original'), picks the override if present, otherwise uses 'default'
+     *  - If a size has neither override nor default, it will be skipped
+     *  - Throws if no variant could be generated
+     *
+     * @param Content|Category $model
+     * @param array<string,UploadedFile|string> $sourcesBySize
+     * @param string $kind
+     * @param string|null $type
+     * @param array<string>|null $onlySizes
+     * @param bool $replaceExisting
+     * @return ContentFile|CategoryFile
+     */
+    public static function uploadModelImageWithDefaults(Model $model, array $sourcesBySize, string $kind = 'avatar', ?string $type = null, ?array $onlySizes = null, bool $replaceExisting = true): Model
+    {
+        [$entityKey, $diskKey, $sizesCfg] = self::resolveEntityContext($model, $kind);
+
+        $sizes = $sizesCfg['sizes'] ?? [];
+        if ($onlySizes !== null) {
+            $sizes = array_intersect_key($sizes, array_flip($onlySizes));
+        }
+        if (empty($sizes)) {
+            throw new InvalidArgumentException("No sizes defined for {$entityKey}.types.{$kind}");
+        }
+
+        /** @var FilesystemContract $disk */
+        $disk = Storage::disk($diskKey);
+
+        $names = [];
+        foreach ($sizes as $sizeKey => $cfg) {
+            // Skip 'original' (null) definitions
+            if ($cfg === null) {
+                continue;
+            }
+            $sourceForSize = $sourcesBySize[$sizeKey] ?? ($sourcesBySize['default'] ?? null);
+            if ($sourceForSize === null) {
+                // no source for this size; skip silently
+                continue;
+            }
+            $binary = self::readSourceBinary($sourceForSize);
+            if ($binary === null) {
+                // cannot read provided source; skip this size
+                continue;
+            }
+            $filename = Name::generateImageName($entityKey . '-' . $kind . '-' . $sizeKey);
+            $w = Arr::get($cfg, 'w');
+            $h = Arr::get($cfg, 'h');
+            $fit = Arr::get($cfg, 'fit', 'contain');
+            $processed = self::resize($binary, (int)$w, (int)$h, (string)$fit);
+            if ($processed === null) {
+                continue;
+            }
+            $disk->put($filename, $processed);
+            $names[$sizeKey] = $filename;
+        }
+
+        if (empty($names)) {
+            throw new InvalidArgumentException('No image variant has been generated. Provide at least a default source or per-size overrides for selected sizes.');
+        }
+
+        if ($model instanceof Content) {
+            $record = self::upsertContentFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+        } elseif ($model instanceof Category) {
+            $record = self::upsertCategoryFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+        } else {
+            throw new InvalidArgumentException('Unsupported model given.');
+        }
+
+        return $record;
+    }
 }
