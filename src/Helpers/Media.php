@@ -56,16 +56,15 @@ class Media
         // Generate and store files
         $names = [];
         foreach ($sizes as $sizeKey => $cfg) {
-            $filename = Name::generateImageName($entityKey . '-' . $kind . '-' . $sizeKey);
+            // Skip 'original' entries (null config) to avoid storing original file
             if ($cfg === null) {
-                // original: keep original dimensions, but re-encode to configured extension
-                $processed = self::reencodeWebp($binary);
-            } else {
-                $w = Arr::get($cfg, 'w');
-                $h = Arr::get($cfg, 'h');
-                $fit = Arr::get($cfg, 'fit', 'contain'); // contain | cover
-                $processed = self::resize($binary, (int)$w, (int)$h, (string)$fit);
+                continue;
             }
+            $filename = Name::generateImageName($entityKey . '-' . $kind . '-' . $sizeKey);
+            $w = Arr::get($cfg, 'w');
+            $h = Arr::get($cfg, 'h');
+            $fit = Arr::get($cfg, 'fit', 'contain'); // contain | cover
+            $processed = self::resize($binary, (int)$w, (int)$h, (string)$fit);
             if ($processed === null) {
                 // Skip if processing failed
                 continue;
@@ -246,10 +245,93 @@ class Media
     protected static function deletePhysicalFiles(array $names, string $diskKey): void
     {
         $disk = Storage::disk($diskKey);
-        foreach ($names as $name) {
-            if (is_string($name) && $disk->exists($name)) {
-                $disk->delete($name);
+        $walker = function($items) use (&$walker, $disk) {
+            foreach ($items as $name) {
+                if (is_array($name)) {
+                    $walker($name);
+                } elseif (is_string($name) && $disk->exists($name)) {
+                    $disk->delete($name);
+                }
+            }
+        };
+        $walker($names);
+    }
+
+    /**
+     * Upload two sources in one call (responsive): separate images for mobile and desktop.
+     * - Provide sources as ['mobile' => UploadedFile|string, 'desktop' => UploadedFile|string]
+     * - Uses the same sizes config as single upload (no profile-specific sizes). Each profile generates its own set.
+     * - Stores DB names as nested arrays: ['mobile' => [size=>filename,...], 'desktop' => [...]]
+     * - Skips generation of any 'original' (null) entry to avoid storing the original file as requested.
+     *
+     * @param Content|Category $model
+     * @param array{mobile?:UploadedFile|string,desktop?:UploadedFile|string} $sources
+     * @param string $kind
+     * @param string|null $type
+     * @param array<string>|null $onlySizes
+     * @param bool $replaceExisting
+     * @return ContentFile|CategoryFile
+     */
+    public static function uploadModelResponsiveImages(Model $model, array $sources, string $kind = 'avatar', ?string $type = null, ?array $onlySizes = null, bool $replaceExisting = true): Model
+    {
+        [$entityKey, $diskKey, $sizesCfg] = self::resolveEntityContext($model, $kind);
+
+        // Base sizes (legacy config). We'll ignore any 'original' => null.
+        $sizes = $sizesCfg['sizes'] ?? [];
+        if ($onlySizes !== null) {
+            $sizes = array_intersect_key($sizes, array_flip($onlySizes));
+        }
+        // Drop any null configs (original)
+        $sizes = array_filter($sizes, function($cfg) {
+            return $cfg !== null;
+        });
+        if (empty($sizes)) {
+            throw new InvalidArgumentException("No sizes defined for responsive upload of {$kind}.");
+        }
+
+        /** @var FilesystemContract $disk */
+        $disk = Storage::disk($diskKey);
+
+        $resultNames = [];
+        foreach (['mobile','desktop'] as $profile) {
+            if (!array_key_exists($profile, $sources) || $sources[$profile] === null) {
+                continue;
+            }
+            $binary = self::readSourceBinary($sources[$profile]);
+            if ($binary === null) {
+                throw new InvalidArgumentException("Cannot read {$profile} source image.");
+            }
+            $profileNames = [];
+            foreach ($sizes as $sizeKey => $cfg) {
+                $filename = Name::generateImageName($entityKey . '-' . $kind . '-' . $profile . '-' . $sizeKey);
+                $w = Arr::get($cfg, 'w');
+                $h = Arr::get($cfg, 'h');
+                $fit = Arr::get($cfg, 'fit', 'contain');
+                $processed = self::resize($binary, (int)$w, (int)$h, (string)$fit);
+                if ($processed === null) {
+                    continue;
+                }
+                $disk->put($filename, $processed);
+                $profileNames[$sizeKey] = $filename;
+            }
+            if (!empty($profileNames)) {
+                $resultNames[$profile] = $profileNames;
             }
         }
+
+        if (empty($resultNames)) {
+            throw new InvalidArgumentException('No image variants generated for any profile.');
+        }
+
+        // Upsert DB record and cleanup old files if replacing
+        if ($model instanceof Content) {
+            $record = self::upsertContentFile($model, $kind, $type, $resultNames, $diskKey, $replaceExisting);
+        } elseif ($model instanceof Category) {
+            $record = self::upsertCategoryFile($model, $kind, $type, $resultNames, $diskKey, $replaceExisting);
+        } else {
+            throw new InvalidArgumentException('Unsupported model given.');
+        }
+
+        return $record;
     }
 }

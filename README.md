@@ -279,6 +279,52 @@ Dostęp do URL po uploadzie
 - Inne rozmiary avataru dostępne dynamicznie: $model->small_avatar_path, $model->large_avatar_path, $model->thumb_avatar_path.
 - Dla innych kind niż 'avatar' możesz pobierać nazwy z rekordu w *_files (pole names) i budować URL przez Storage::disk(config('cms.disks.{entity}'))->url($name).
 
+Upload responsywny (jedno wywołanie: mobile + desktop)
+W odpowiedzi na wymaganie: „w jednym odniesieniu dało się zaimplementować dwa pliki (mobile i desktop) oraz rezygnacja z oryginalnego pliku przy uploadzie” dodano nową metodę i zachowanie helpera Media:
+
+- Oryginalny plik (klucz 'original' o wartości null w konfiguracji) nie jest już zapisywany przez helper – wpisy 'original' są ignorowane podczas generowania plików. Dzięki temu nie trzymamy zbędnej kopii.
+- Nowa metoda do jednoczesnego uploadu dwóch źródeł (mobile i desktop):
+
+```php
+use Dominservice\LaravelCms\Helpers\Media;
+
+Media::uploadModelResponsiveImages(
+    $model,                                   // Content lub Category
+    [
+        'mobile'  => request()->file('img_mobile'),   // UploadedFile lub ścieżka
+        'desktop' => request()->file('img_desktop'),  // UploadedFile lub ścieżka
+    ],
+    'avatar',          // kind
+    null,              // type (opcjonalnie)
+    ['large','thumb'], // onlySizes (opcjonalnie) – np. tylko wybrane rozmiary
+    true               // replaceExisting
+);
+```
+
+- Zapis w bazie (kolumna names) ma postać zagnieżdżonej struktury:
+
+```json
+{
+  "mobile": {
+    "large": "content-avatar-mobile-large-XXXX.webp",
+    "thumb": "content-avatar-mobile-thumb-YYYY.webp"
+  },
+  "desktop": {
+    "large": "content-avatar-desktop-large-ZZZZ.webp",
+    "thumb": "content-avatar-desktop-thumb-WWWW.webp"
+  }
+}
+```
+
+- Dostęp do URL w accessorach:
+  - avatar_path – domyślnie zwraca profil desktop dla rozmiaru display z konfiguracji.
+  - {size}_avatar_path – dalej działa (np. large_avatar_path) i korzysta z profilu desktop, jeżeli zapisano struktury z profilami.
+  - {profile}_{size}_avatar_path – jawnie dla profilu, np.:
+    - mobile_large_avatar_path
+    - desktop_thumb_avatar_path
+
+Uwaga: Konfiguracja rozmiarów w config/cms.php może nadal zawierać klucz 'original', ale helper go zignoruje. Zalecane jest pozostawienie tylko potrzebnych rozmiarów z parametrami.
+
 Walidacja i obsługa błędów
 - W razie błędnej konfiguracji lub nieudanego przetwarzania rzucony zostanie InvalidArgumentException. Możesz zabezpieczyć wywołanie:
 ```php
