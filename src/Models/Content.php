@@ -55,7 +55,9 @@ class Content extends Model
 
     protected $appends = [
         'avatar_path',
-        'video_path'
+        'video_path',
+        'video_avatar_path',
+        'video_poster_path',
     ];
 
     /**
@@ -76,6 +78,36 @@ class Content extends Model
         }
 
         return null;
+    }
+
+    public function getVideoAvatarPathAttribute()
+    {
+        $record = $this->files()->where('kind', 'video_avatar')->first();
+        if (!$record || !is_array($record->names)) {
+            return null;
+        }
+        $display = config('cms.files.content.types.video_avatar.display', 'hd');
+        $name = $record->names[$display] ?? (is_array($record->names) ? reset($record->names) : null);
+        if (!$name) {
+            return null;
+        }
+        $diskKey = config('cms.disks.content_video');
+        return \Storage::disk($diskKey)->exists($name) ? \Storage::disk($diskKey)->url($name) : null;
+    }
+
+    public function getVideoPosterPathAttribute()
+    {
+        $record = $this->files()->where('kind', 'video_poster')->first();
+        if (!$record || !is_array($record->names)) {
+            return null;
+        }
+        $display = config('cms.files.content.types.video_poster.display', 'large');
+        $name = $record->names[$display] ?? (is_array($record->names) ? reset($record->names) : null);
+        if (!$name) {
+            return null;
+        }
+        $diskKey = config('cms.disks.content');
+        return \Storage::disk($diskKey)->exists($name) ? \Storage::disk($diskKey)->url($name) : null;
     }
 
     /**

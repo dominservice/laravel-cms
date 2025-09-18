@@ -210,6 +210,33 @@ Jeśli masz relację Content->video oraz plik wideo zapisany na dysku config('cm
 $videoUrl = $content->video_path; // null jeśli brak lub plik nie istnieje
 ```
 
+Nowość: Avatar wideo w wielu rozmiarach + obraz pierwszej klatki (poster)
+- Konfiguracja w config/cms.php:
+  - files.content.types.video_avatar.sizes – lista dopuszczalnych wariantów wideo (np. hd, sd, mobile)
+  - files.content.types.video_avatar.display – który wariant ma być zwracany przez $content->video_avatar_path
+  - files.content.types.video_poster.sizes – rozmiary obrazka postera (przetwarzane jak obrazy)
+
+Upload wielu plików wideo (bez transkodowania) jako „video_avatar”:
+```php
+use Dominservice\\LaravelCms\\Helpers\\Media;
+
+Media::uploadModelVideos($content, [
+    'hd'     => request()->file('video_hd'),     // UploadedFile lub ścieżka do pliku mp4/webm itp.
+    'sd'     => request()->file('video_sd'),
+    'mobile' => request()->file('video_mobile'),
+], 'video_avatar');
+
+// Po zapisie
+$defaultVideo = $content->video_avatar_path; // URL do wariantu zdefiniowanego w display (domyślnie 'hd')
+```
+
+Upload obrazka pierwszej klatki (poster) – działa jak obrazy, generuje rozmiary zgodnie z config:
+```php
+Media::uploadModelImage($content, request()->file('video_poster'), 'video_poster');
+
+$poster = $content->video_poster_path; // URL do rozmiaru wskazanego w display (domyślnie 'large')
+```
+
 Upload plików (helper Media)
 Pakiet zawiera wbudowany helper do przetwarzania i zapisu obrazów wraz z generowaniem wielu rozmiarów oraz automatyczną synchronizacją nazw w tabelach zależnych.
 

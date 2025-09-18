@@ -53,6 +53,25 @@ return [
                         'thumb' => ['w' => 160, 'h' => 160, 'fit' => 'cover'],
                     ],
                 ],
+                // New: video avatar variants (no transcoding here, just naming/validation)
+                'video_avatar' => [
+                    'display' => 'hd',
+                    'sizes' => [
+                        'hd' => [],      // 1080p/720p file provided by user
+                        'sd' => [],      // 480p file provided by user
+                        'mobile' => [],  // smaller/mobile
+                    ],
+                ],
+                // New: poster image (first frame) for video avatar; uses image pipeline
+                'video_poster' => [
+                    'display' => 'large',
+                    'sizes' => [
+                        'original' => null,
+                        'large' => ['w' => 1920, 'h' => 1080, 'fit' => 'contain'],
+                        'small' => ['w' => 640, 'h' => 360, 'fit' => 'contain'],
+                        'thumb' => ['w' => 160, 'h' => 160, 'fit' => 'cover'],
+                    ],
+                ],
             ],
         ],
         'category' => [

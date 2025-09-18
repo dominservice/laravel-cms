@@ -413,5 +413,92 @@ class Media
         }
 
         return $record;
+        }
+
+    /**
+     * Upload multiple pre-encoded video files (by sizes) for a model as a single logical entry.
+     * - Does NOT transcode. It simply stores provided files and records their names per size.
+     * - Uses files.{entity}.types.{kind}.sizes to validate allowed size keys and to pick a display size elsewhere.
+     * - For Content videos, files are stored on the 'content_video' disk.
+     *
+     * @param Content|Category $model
+     * @param array<string, UploadedFile|string> $sourcesBySize Map of sizeKey => UploadedFile|string
+     * @param string $kind Logical kind, defaults to 'video_avatar'
+     * @param string|null $type Optional subtype
+     * @param array<string>|null $onlySizes Optional whitelist of size keys to accept
+     * @param bool $replaceExisting Replace and delete previous files if record exists
+     * @return ContentFile|CategoryFile
+     */
+    public static function uploadModelVideos(Model $model, array $sourcesBySize, string $kind = 'video_avatar', ?string $type = null, ?array $onlySizes = null, bool $replaceExisting = true): Model
+    {
+        // Determine entity and sizes config
+        $entityKey = null;
+        if ($model instanceof Content) {
+            $entityKey = 'content';
+        } elseif ($model instanceof Category) {
+            $entityKey = 'category';
+        } else {
+            throw new InvalidArgumentException('Model must be instance of Content or Category.');
+        }
+
+        // For video we prefer a dedicated disk (only implemented for content). Fallback to entity disk if missing.
+        $diskKey = $entityKey === 'content' ? (config('cms.disks.content_video') ?: config('cms.disks.content')) : config('cms.disks.category');
+
+        $sizesCfg = config("cms.files.{$entityKey}.types.{$kind}");
+        if (!$sizesCfg || !isset($sizesCfg['sizes']) || !is_array($sizesCfg['sizes'])) {
+            throw new InvalidArgumentException("Missing sizes config for {$entityKey}.types.{$kind}");
+        }
+        $allowedSizes = array_keys($sizesCfg['sizes']);
+
+        // Filter provided sources by allowed sizes (and optional onlySizes)
+        $candidateKeys = array_keys($sourcesBySize);
+        if ($onlySizes !== null) {
+            $candidateKeys = array_values(array_intersect($candidateKeys, $onlySizes));
+        }
+        $keys = array_values(array_intersect($candidateKeys, $allowedSizes));
+        if (empty($keys)) {
+            throw new InvalidArgumentException('No acceptable video sizes provided.');
+        }
+
+        /** @var FilesystemContract $disk */
+        $disk = Storage::disk($diskKey);
+
+        $names = [];
+        foreach ($keys as $sizeKey) {
+            $src = $sourcesBySize[$sizeKey];
+            $binary = self::readSourceBinary($src);
+            if ($binary === null) {
+                throw new InvalidArgumentException("Cannot read source for size {$sizeKey}.");
+            }
+            // Determine extension
+            $ext = 'mp4';
+            if ($src instanceof UploadedFile) {
+                $ext = $src->getClientOriginalExtension() ?: ($src->extension() ?: 'mp4');
+            } elseif (is_string($src)) {
+                $pathExt = pathinfo($src, PATHINFO_EXTENSION);
+                if (is_string($pathExt) && $pathExt !== '') {
+                    $ext = $pathExt;
+                }
+            }
+            $filename = Name::generateVideoName($entityKey . '-' . $kind . '-' . $sizeKey, (string)$ext);
+            $disk->put($filename, $binary);
+            $names[$sizeKey] = $filename;
+        }
+
+        if (empty($names)) {
+            throw new InvalidArgumentException('No video files were stored.');
+        }
+
+        // Upsert DB metadata into the files table for consistency with images
+        if ($model instanceof Content) {
+            return self::upsertContentFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+        }
+        // For Category, reuse category files table and its disk
+        if ($model instanceof Category) {
+            return self::upsertCategoryFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+        }
+
+        // Should never reach here due to earlier guard
+        throw new InvalidArgumentException('Unsupported model given.');
     }
 }
