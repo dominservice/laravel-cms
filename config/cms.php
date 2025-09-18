@@ -27,11 +27,6 @@ return [
     // Backward-compat for legacy avatar naming (still used as fallback)
     'avatar' => [
         'extension' => 'webp',
-
-        /** set cols from model */
-        'format_name' => 'uuid|updated_at',
-        'small_prefix' => 'small_',
-        'thumb_prefix' => 'thumb_'
     ],
 
     // New configurable file types and sizes per entity

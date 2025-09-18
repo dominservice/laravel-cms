@@ -25,6 +25,7 @@ Spis treści
   - Zapis plików (avatar i dodatkowe)
   - Pobieranie adresów URL dla rozmiarów
   - Wideo
+- Upload plików (helper Media)
 - Rozszerzanie: nowe typy plików i rozmiary
 - Uwagi dot. zgodności wstecznej
 - FAQ/Troubleshooting
@@ -204,6 +205,100 @@ Jeśli masz relację Content->video oraz plik wideo zapisany na dysku config('cm
 ```php
 $videoUrl = $content->video_path; // null jeśli brak lub plik nie istnieje
 ```
+
+Upload plików (helper Media)
+Pakiet zawiera wbudowany helper do przetwarzania i zapisu obrazów wraz z generowaniem wielu rozmiarów oraz automatyczną synchronizacją nazw w tabelach zależnych.
+
+Sygnatura metody:
+```php
+use Dominservice\LaravelCms\Helpers\Media;
+
+Media::uploadModelImage(
+    \Illuminate\Database\Eloquent\Model $model,          // Content lub Category
+    \Illuminate\Http\UploadedFile|string $source,         // UploadedFile z requestu lub ścieżka do pliku na dysku
+    string $kind = 'avatar',                                // 'avatar' lub 'additional' (lub inny zdefiniowany w configu)
+    ?string $type = null,                                   // opcjonalny pod-typ, np. 'gallery'
+    ?array $onlySizes = null,                               // np. ['large','thumb'] – wygeneruje wybrane rozmiary
+    bool $replaceExisting = true                            // czy zastępować istniejący plik tego typu dla modelu
+): \Illuminate\Database\Eloquent\Model;                   // Zwraca ContentFile lub CategoryFile
+```
+
+Opis parametrów i działania:
+- model – instancja Content lub Category. Na podstawie modelu wybierany jest odpowiedni dysk (config('cms.disks.content'| 'category')) i gałąź konfiguracji rozmiarów.
+- source – może być UploadedFile (np. request()->file('avatar')) albo pełna ścieżka do istniejącego pliku obrazu.
+- kind – typ pliku zgodny z konfiguracją w config('cms.files.{content|category}.types'). Domyślnie 'avatar'.
+- type – opcjonalny pod-typ, pozwala rozróżniać warianty w obrębie tego samego kind (np. 'gallery').
+- onlySizes – jeśli podasz listę kluczy rozmiarów, helper wygeneruje tylko te warianty; gdy null, wygeneruje wszystkie zdefiniowane w configu dla danego kind.
+- replaceExisting – jeśli true i istnieje już rekord dla (model, kind, type), helper usunie stare pliki z dysku i zaktualizuje rekord nazwami nowych plików.
+
+Użyta konfiguracja rozmiarów:
+- Definicje rozmiarów znajdują się w config('cms.files.content.types') i config('cms.files.category.types').
+- Każdy rozmiar ma klucz (np. original, large, small, thumb). Wartość null oznacza zachowanie oryginalnych wymiarów (z reenkodowaniem do rozszerzenia z config('cms.avatar.extension')).
+- Dla rozmiarów z parametrami możesz określić: w (szerokość), h (wysokość), fit ('contain' albo 'cover').
+
+Przykłady
+1) Upload avataru dla treści (z pliku z formularza)
+```php
+use Dominservice\LaravelCms\Helpers\Media;
+use Dominservice\LaravelCms\Models\Content;
+
+$content = Content::first();
+$file = request()->file('avatar');
+
+// Wygeneruje wszystkie rozmiary zdefiniowane dla 'avatar' i zapisze do cms_content_files
+$record = Media::uploadModelImage($content, $file, 'avatar');
+
+// Po zapisie możesz uzyskać URL zgodnie z konfiguracją display
+$url = $content->avatar_path;            // np. 'large'
+$thumb = $content->thumb_avatar_path;    // dostęp dynamiczny
+```
+
+2) Upload tylko wybranych rozmiarów (np. large i thumb)
+```php
+$record = Media::uploadModelImage($content, $file, 'avatar', null, ['large','thumb']);
+```
+
+3) Upload pliku dla kategorii z pod-typem (gallery), źródło jako ścieżka z dysku
+```php
+use Dominservice\LaravelCms\Models\Category;
+
+$category = Category::first();
+$path = storage_path('app/tmp/example.jpg');
+
+$record = Media::uploadModelImage($category, $path, 'additional', 'gallery');
+```
+
+4) Zachowanie istniejących plików (bez usuwania i podmiany)
+```php
+// replaceExisting = false – helper doda/ustawi rekord tylko jeśli nie istnieje; istniejące pliki pozostaną nienaruszone
+$record = Media::uploadModelImage($content, $file, 'avatar', null, null, false);
+```
+
+Dostęp do URL po uploadzie
+- Dla avataru: $model->avatar_path zwróci URL rozmiaru wskazanego w files.{entity}.types.avatar.display.
+- Inne rozmiary avataru dostępne dynamicznie: $model->small_avatar_path, $model->large_avatar_path, $model->thumb_avatar_path.
+- Dla innych kind niż 'avatar' możesz pobierać nazwy z rekordu w *_files (pole names) i budować URL przez Storage::disk(config('cms.disks.{entity}'))->url($name).
+
+Walidacja i obsługa błędów
+- W razie błędnej konfiguracji lub nieudanego przetwarzania rzucony zostanie InvalidArgumentException. Możesz zabezpieczyć wywołanie:
+```php
+try {
+    Media::uploadModelImage($content, $file, 'avatar');
+} catch (\InvalidArgumentException $e) {
+    // obsłuż błąd (np. komunikat dla użytkownika)
+}
+```
+
+Wymagania środowiskowe
+- Upewnij się, że skonfigurowane są właściwe dyski w config('cms.disks.*') oraz istnieje storage:link dla publicznego serwowania plików:
+```bash
+php artisan storage:link
+```
+
+- Rozszerzenie obrazów ustawiane jest przez config('cms.avatar.extension'), domyślnie webp.
+
+Czyszczenie i podmiana
+- Gdy replaceExisting = true, helper automatycznie usuwa poprzednie pliki z dysku przypisane do danego rekordu (model, kind, type) i zapisuje nowe nazwy w kolumnie names.
 
 Rozszerzanie: nowe typy plików i rozmiary
 - W pliku config/cms.php dodaj własny typ w sekcji files.{entity}.types, np. gallery, document.

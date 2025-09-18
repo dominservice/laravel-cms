@@ -14,6 +14,7 @@
     ],
     "require": {
         "php": ">=8.0",
+        "ext-gd": "*",
         "laravel/framework": "^9|^10|^11|^12",
         "astrotomic/laravel-translatable": "^11.13",
         "kalnoy/nestedset": "^6.0"
