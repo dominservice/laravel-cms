@@ -7,11 +7,10 @@ use Illuminate\Support\Facades\Storage;
 trait DynamicAvatarAccessor
 {
     /**
-     * Must be defined in the model using this trait to determine which config branch and disk to use.
-     * Example values: 'content' or 'category'.
-     * @var string
+     * The model using this trait should define a protected string $fileConfigKey
+     * to determine which config branch and disk to use (e.g. 'content' or 'category').
+     * If it's not defined in the model, we will gracefully fall back to 'content'.
      */
-    protected string $fileConfigKey = 'content';
 
     /**
      * Main avatar accessor. Returns URL for the configured display size.
@@ -52,7 +51,7 @@ trait DynamicAvatarAccessor
 
     protected function getConfiguredAvatarDisplaySize(): string
     {
-        $key = "cms.files.{$this->fileConfigKey}.types.avatar.display";
+        $key = "cms.files." . $this->getFileConfigKey() . ".types.avatar.display";
         $size = config($key);
         if (is_string($size) && $size !== '') {
             return $size;
@@ -92,7 +91,7 @@ trait DynamicAvatarAccessor
             }
             $name = $names[$size];
         }
-        $diskKey = config("cms.disks.{$this->fileConfigKey}");
+        $diskKey = config("cms.disks." . $this->getFileConfigKey());
         if (!$diskKey) {
             return null;
         }
@@ -100,5 +99,14 @@ trait DynamicAvatarAccessor
             return Storage::disk($diskKey)->url($name);
         }
         return null;
+    }
+
+    protected function getFileConfigKey(): string
+    {
+        // Use model-defined property if present and string, otherwise fallback to 'content'
+        if (property_exists($this, 'fileConfigKey') && is_string($this->fileConfigKey) && $this->fileConfigKey !== '') {
+            return $this->fileConfigKey;
+        }
+        return 'content';
     }
 }
