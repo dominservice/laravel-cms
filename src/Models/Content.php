@@ -55,8 +55,6 @@ class Content extends Model
 
     protected $appends = [
         'avatar_path',
-        'small_avatar_path',
-        'thumb_avatar_path',
         'video_path'
     ];
 
