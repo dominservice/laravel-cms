@@ -13,6 +13,9 @@ return [
         'content_categories' => 'cms_content_categories',
         'content_video' => 'cms_content_videos',
         'redirects' => 'cms_redirects',
+        // New dependent tables for file metadata
+        'content_files' => 'cms_content_files',
+        'category_files' => 'cms_category_files',
     ],
     
     'disks' => [
@@ -21,6 +24,7 @@ return [
         'content_video' => 'public',
     ],
 
+    // Backward-compat for legacy avatar naming (still used as fallback)
     'avatar' => [
         'extension' => 'webp',
 
@@ -28,5 +32,55 @@ return [
         'format_name' => 'uuid|updated_at',
         'small_prefix' => 'small_',
         'thumb_prefix' => 'thumb_'
+    ],
+
+    // New configurable file types and sizes per entity
+    'files' => [
+        'content' => [
+            // Types of files and their size variants
+            // You can add more types (e.g., 'gallery', 'document') and custom sizes
+            'types' => [
+                'avatar' => [
+                    // Which size should be exposed as the main `avatar_path`
+                    'display' => 'large',
+                    'sizes' => [
+                        'original' => null, // keep original
+                        'large' => ['w' => 1920, 'h' => 1080, 'fit' => 'contain'],
+                        'small' => ['w' => 640, 'h' => 360, 'fit' => 'contain'],
+                        'thumb' => ['w' => 160, 'h' => 160, 'fit' => 'cover'],
+                    ],
+                ],
+                'additional' => [
+                    'sizes' => [
+                        'original' => null,
+                        'large' => ['w' => 1920, 'h' => 1080, 'fit' => 'contain'],
+                        'small' => ['w' => 640, 'h' => 360, 'fit' => 'contain'],
+                        'thumb' => ['w' => 160, 'h' => 160, 'fit' => 'cover'],
+                    ],
+                ],
+            ],
+        ],
+        'category' => [
+            'types' => [
+                'avatar' => [
+                    // Which size should be exposed as the main `avatar_path`
+                    'display' => 'large',
+                    'sizes' => [
+                        'original' => null,
+                        'large' => ['w' => 1920, 'h' => 1080, 'fit' => 'contain'],
+                        'small' => ['w' => 640, 'h' => 360, 'fit' => 'contain'],
+                        'thumb' => ['w' => 160, 'h' => 160, 'fit' => 'cover'],
+                    ],
+                ],
+                'additional' => [
+                    'sizes' => [
+                        'original' => null,
+                        'large' => ['w' => 1920, 'h' => 1080, 'fit' => 'contain'],
+                        'small' => ['w' => 640, 'h' => 360, 'fit' => 'contain'],
+                        'thumb' => ['w' => 160, 'h' => 160, 'fit' => 'cover'],
+                    ],
+                ],
+            ],
+        ],
     ],
 ];

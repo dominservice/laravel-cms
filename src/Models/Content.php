@@ -5,7 +5,6 @@ namespace Dominservice\LaravelCms\Models;
 
 use Astrotomic\Translatable\Translatable;
 use Carbon\Carbon;
-use Dominservice\LaravelCms\Helpers\Name;
 use Dominservice\LaravelCms\Traits\HasUuidPrimary;
 use Dominservice\LaravelCms\Traits\TranslatableLocales;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -33,7 +32,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Content extends Model
 {
-    use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes;
+    use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes, \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor;
+
+    protected string $fileConfigKey = 'content';
 
     protected $fillable = [
         'type',
@@ -69,35 +70,6 @@ class Content extends Model
         return config('cms.tables.contents');
     }
 
-    public function getAvatarPathAttribute()
-    {
-        $avatar = Name::generateAvatarName($this, 'content_');
-        if(\Storage::disk(config('cms.disks.content'))->exists($avatar)) {
-            return \Storage::disk(config('cms.disks.content'))->url($avatar);
-        }
-
-        return null;
-    }
-
-    public function getSmallAvatarPathAttribute()
-    {
-        $avatar = Name::generateAvatarName($this, 'content_small_');
-        if(\Storage::disk(config('cms.disks.content'))->exists($avatar)) {
-            return \Storage::disk(config('cms.disks.content'))->url($avatar);
-        }
-
-        return null;
-    }
-
-    public function getThumbAvatarPathAttribute()
-    {
-        $avatar = Name::generateAvatarName($this, 'content_thumb_');
-        if(\Storage::disk(config('cms.disks.content'))->exists($avatar)) {
-            return \Storage::disk(config('cms.disks.content'))->url($avatar);
-        }
-
-        return null;
-    }
 
     public function getVideoPathAttribute()
     {
@@ -159,5 +131,15 @@ class Content extends Model
     public function video()
     {
         return $this->belongsTo(\Dominservice\LaravelCms\Models\ContentVideo::class, 'uuid', 'content_uuid');
+    }
+
+    public function files()
+    {
+        return $this->hasMany(\Dominservice\LaravelCms\Models\ContentFile::class, 'content_uuid', 'uuid');
+    }
+
+    public function avatarFile()
+    {
+        return $this->hasOne(\Dominservice\LaravelCms\Models\ContentFile::class, 'content_uuid', 'uuid')->where('kind', 'avatar');
     }
 }

@@ -2,18 +2,15 @@
 
 namespace Dominservice\LaravelCms\Helpers;
 
-use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class Name
 {
-    public static function generateAvatarName($model, string $prefix = null): string
+    public static function generateImageName(string $prefix = null): string
     {
-        $format = explode('|', config('cms.avatar.format_name') ?? $model->getKeyName());
-        return $prefix
-            . (in_array($model->getKeyName(), $format) ? $model->{$model->getKeyName()}: '')
-            . (in_array('type', $format) ? $model->attributes['type'] ?? '' : '')
-            . (in_array('created_at', $format) && $model->attributes['created_at'] ? Carbon::parse($model->attributes['created_at'])->format('Ymdhis') : '')
-            . (in_array('updated_at', $format) && $model->attributes['updated_at'] ? Carbon::parse($model->attributes['updated_at'])->format('Ymdhis') : '')
-            . '.' . config('cms.avatar.extension');
+        $unique = Str::ulid()->toBase32();
+        $base = trim((string)($prefix ?? ''), '_-');
+        $name = ($base !== '' ? $base . '-' : '') . $unique;
+        return $name . '.' . config('cms.avatar.extension');
     }
 }

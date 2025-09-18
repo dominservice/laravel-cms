@@ -4,7 +4,6 @@ namespace Dominservice\LaravelCms\Models;
 
 
 use Astrotomic\Translatable\Translatable;
-use Dominservice\LaravelCms\Helpers\Name;
 use Dominservice\LaravelCms\Traits\HasUuidPrimary;
 use Dominservice\LaravelCms\Traits\TranslatableLocales;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -27,7 +26,7 @@ use Kalnoy\Nestedset\NodeTrait;
  */
 class Category extends Model
 {
-    use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes, NodeTrait;
+    use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes, NodeTrait, \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor;
 
     protected $fillable = [
         'type',
@@ -50,6 +49,8 @@ class Category extends Model
         'avatar_path'
     ];
 
+    protected string $fileConfigKey = 'category';
+
     /**
      * Get the table associated with the model.
      *
@@ -68,37 +69,6 @@ class Category extends Model
     public function getParentIdName()
     {
         return 'parent_uuid';
-    }
-
-    public function getAvatarPathAttribute()
-    {
-        $avatar = Name::generateAvatarName($this, 'category_');
-
-        if (Storage::disk(config('cms.disks.category'))->exists($avatar)) {
-            return Storage::disk(config('cms.disks.category'))->url($avatar);
-        }
-
-        return null;
-    }
-
-    public function getSmallAvatarPathAttribute()
-    {
-        $avatar = Name::generateAvatarName($this, 'category_small_');
-        if(\Storage::disk(config('cms.disks.category'))->exists($avatar)) {
-            return \Storage::disk(config('cms.disks.category'))->url($avatar);
-        }
-
-        return null;
-    }
-
-    public function getThumbAvatarPathAttribute()
-    {
-        $avatar = Name::generateAvatarName($this, 'category_thumb_');
-        if(\Storage::disk(config('cms.disks.category'))->exists($avatar)) {
-            return \Storage::disk(config('cms.disks.category'))->url($avatar);
-        }
-
-        return null;
     }
 
     public function createdAt(): Attribute
@@ -124,5 +94,15 @@ class Category extends Model
             , 'category_uuid'
             , 'version_uuid'
         );
+    }
+
+    public function files()
+    {
+        return $this->hasMany(\Dominservice\LaravelCms\Models\CategoryFile::class, 'category_uuid', 'uuid');
+    }
+
+    public function avatarFile()
+    {
+        return $this->hasOne(\Dominservice\LaravelCms\Models\CategoryFile::class, 'category_uuid', 'uuid')->where('kind', 'avatar');
     }
 }
