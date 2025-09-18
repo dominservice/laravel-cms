@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $uuid
  * @property string $content_uuid
  * @property string $kind
- * @property string|null $type
+ * @property string|null $type  // 'image' or 'video'
  * @property array $names
  */
 class ContentFile extends Model

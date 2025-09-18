@@ -33,6 +33,10 @@ class Media
     public static function uploadModelImage(Model $model, UploadedFile|string $source, string $kind = 'avatar', ?string $type = null, ?array $onlySizes = null, bool $replaceExisting = true): Model
     {
         [$entityKey, $diskKey, $sizesCfg] = self::resolveEntityContext($model, $kind);
+        // Enforce semantic: files.type indicates media kind ('image'|'video'). For images we default to 'image'.
+        if ($type === null) {
+            $type = 'image';
+        }
 
         // Filter sizes according to $onlySizes
         $sizes = $sizesCfg['sizes'] ?? [];
@@ -431,6 +435,10 @@ class Media
      */
     public static function uploadModelVideos(Model $model, array $sourcesBySize, string $kind = 'video_avatar', ?string $type = null, ?array $onlySizes = null, bool $replaceExisting = true): Model
     {
+        // Default semantic for videos: files.type = 'video' unless explicitly set
+        if ($type === null) {
+            $type = 'video';
+        }
         // Determine entity and sizes config
         $entityKey = null;
         if ($model instanceof Content) {

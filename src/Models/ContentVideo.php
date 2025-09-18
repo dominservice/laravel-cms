@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @deprecated - this model while be deleted in next big project update
+ *
+ *
  * @property int $id
  * @property string $content_uuid
  * @property string $name

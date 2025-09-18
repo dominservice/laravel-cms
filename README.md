@@ -112,7 +112,7 @@ Modele i relacje
 
 - Dominservice\LaravelCms\Models\ContentFile i CategoryFile
   - Przechowują metadane plików w tabelach zależnych (cms_content_files, cms_category_files)
-  - Kolumny: uuid, *_uuid, kind ('avatar' lub 'additional' itp.), type (opcjonalny pod-typ), names (JSON: mapa rozmiar => nazwa pliku), timestamps, softDeletes
+  - Kolumny: uuid, *_uuid, kind ('avatar', 'additional', 'video_avatar', 'video_poster' itp.), type (rodzaj pliku: 'image' lub 'video'), names (JSON: mapa rozmiar => nazwa pliku), timestamps, softDeletes
 
 - Dominservice\LaravelCms\Models\ContentVideo
   - Prosta relacja z Content, pozwala przechowywać nazwę pliku wideo i udostępniać URL przez content->video_path
@@ -239,6 +239,22 @@ $poster = $content->video_poster_path; // URL do rozmiaru wskazanego w display (
 
 Upload plików (helper Media)
 Pakiet zawiera wbudowany helper do przetwarzania i zapisu obrazów wraz z generowaniem wielu rozmiarów oraz automatyczną synchronizacją nazw w tabelach zależnych.
+
+Semantyka kolumny type w *_files
+- Od tej wersji kolumna type w tabelach cms_content_files i cms_category_files określa bazowy rodzaj pliku: 'image' albo 'video'.
+- Helper Media ustawia to automatycznie:
+  - uploadModelImage(...): type domyślnie = 'image'
+  - uploadModelVideos(...): type domyślnie = 'video'
+- Dla postera wideo (kind = 'video_poster') helper traktuje go jak obraz (type = 'image').
+
+Lista obrazów i wideo na modelu (trait)
+Modele Content i Category używają traitu DynamicAvatarAccessor, który udostępnia pomocnicze metody:
+- $model->imageFilesList() – kolekcja rekordów *_files, gdzie type = 'image'
+- $model->videoFilesList() – kolekcja rekordów *_files, gdzie type = 'video'
+
+Uwaga dot. postera
+- Poster wideo jest przechowywany jako osobny rekord w *_files o kind = 'video_poster' i type = 'image'.
+- Powiązanie „wideo ↔ poster” jest realizowane konwencją przez wspólnego właściciela (content_uuid/category_uuid) i rodzaje kind; na ten moment nie ma dodatkowego klucza relacyjnego między rekordami.*
 
 Sygnatura metody:
 ```php
@@ -433,3 +449,134 @@ FAQ / Troubleshooting
 
 Licencja
 MIT
+
+
+## Plan migracji danych i eliminacji ContentVideo
+
+Cel: całkowicie przenieść przechowywanie informacji o wideo z tabeli cms_content_videos (model ContentVideo) do unified storage w cms_content_files (model ContentFile) z rozdzieleniem na:
+- kind = "video_avatar" (type = "video") — wiele wariantów wideo (np. hd/sd/mobile)
+- kind = "video_poster" (type = "image") — obraz pierwszej klatki (poster)
+
+Po migracji ContentVideo będzie zbędny i może zostać usunięty.
+
+Etapy (proponowana oś czasu)
+1) Przygotowanie (Dzień 0)
+- Upewnij się, że wdrożona jest wersja pakietu zawierająca:
+  - modele ContentFile/CategoryFile z kolumną type = 'image'|'video'
+  - helper Media::uploadModelVideos oraz Media::uploadModelImage dla kind = video_poster
+  - accessor $content->video_avatar_path i $content->video_poster_path
+- Zweryfikuj konfigurację:
+  - config('cms.disks.content_video') wskazuje poprawny dysk (np. public)
+  - config('cms.files.content.types.video_avatar.sizes') zawiera dopuszczalne klucze (np. hd/sd/mobile)
+  - config('cms.files.content.types.video_avatar.display') ustawiony (np. hd)
+  - config('cms.files.content.types.video_poster.sizes') i display ustawione (np. large)
+- Wykonaj pełną kopię bazy i plików (storage/app/public). To krok obowiązkowy.
+
+2) Backfill danych (Dzień 0)
+Przenieś wpisy z cms_content_videos do cms_content_files w formie jednowariantowej (np. tylko 'hd'), bez utraty kompatybilności.
+
+Wariant A: SQL (szybki backfill jednowariantowy)
+- Założenie: w cms_content_videos jest plik źródłowy (np. 1 sztuka na content), który traktujemy jako wariant 'hd'.
+
+Przykładowy SQL (MySQL/MariaDB):
+```sql
+INSERT INTO cms_content_files (uuid, content_uuid, kind, type, names, created_at, updated_at, deleted_at)
+SELECT UUID(), v.content_uuid, 'video_avatar' AS kind, 'video' AS type,
+       JSON_OBJECT('hd', v.name) AS names,
+       NOW(), NOW(), NULL
+FROM cms_content_videos v
+LEFT JOIN cms_content_files f
+  ON f.content_uuid = v.content_uuid AND f.kind = 'video_avatar' AND f.deleted_at IS NULL
+WHERE f.uuid IS NULL;
+```
+Uwaga: UUID() można zastąpić generatorem zgodnym z Twoją bazą; jeśli kolumna uuid to CHAR(36) z aplikacyjnym UUID/ULID, rozważ backfill przez skrypt aplikacyjny (Wariant B), aby użyć helpera generującego.
+
+Wariant B: Skrypt w Laravel (Eloquent) — bezpieczniejszy i elastyczny
+```php
+use Dominservice\LaravelCms\Models\Content;
+use Dominservice\LaravelCms\Models\ContentFile;
+use Illuminate\Support\Facades\DB;
+
+DB::transaction(function () {
+    Content::query()
+        ->with('video')
+        ->whereHas('video')
+        ->chunkById(200, function ($contents) {
+            foreach ($contents as $content) {
+                $exists = $content->files()
+                    ->where('kind', 'video_avatar')
+                    ->exists();
+                if ($exists) { continue; }
+
+                $name = optional($content->video)->name; // nazwa pliku wideo z legacy tabeli
+                if (!$name) { continue; }
+
+                ContentFile::create([
+                    'content_uuid' => $content->uuid,
+                    'kind' => 'video_avatar',
+                    'type' => 'video',
+                    'names' => ['hd' => $name],
+                ]);
+            }
+        });
+});
+```
+
+3) Poster (opcjonalny, ale zalecany) (Dzień 0–1)
+- Jeśli posiadasz obrazy pierwszej klatki: utwórz dla każdego content rekord kind = 'video_poster', type = 'image' w cms_content_files przy pomocy Media::uploadModelImage($content, $file, 'video_poster').
+- Jeśli nie masz posterów — etap można pominąć lub wygenerować je w przyszłości.
+
+4) Okres przejściowy (Dzień 1–X)
+- W aplikacji produkcyjnej używaj już tylko nowych accessorów i danych:
+  - Odczyt URL wideo: $content->video_avatar_path (zwraca rozmiar wg display, domyślnie 'hd').
+  - Odczyt posteru: $content->video_poster_path.
+  - Listy plików: $content->videoFilesList() (type = 'video'), $content->imageFilesList() (type = 'image').
+- Zachowaj istniejącą relację Content->video() jako fallback (dla pełnej zgodności wstecznej) na czas przejściowy.
+- Nowe zapisy wideo kieruj WYŁĄCZNIE do ContentFile przez Media::uploadModelVideos.
+
+5) Deprecjacja API (Dzień X)
+- Zaktualizuj kod aplikacji:
+  - PRZESTAŃ używać: $content->video_path i $content->video (relacja).
+  - Zastąp przez: $content->video_avatar_path oraz $content->files()->where('kind','video_avatar')->first().
+- Opcjonalnie dodaj ostrzeżenia/deprecation notice w kodzie aplikacyjnym (niekoniecznie w pakiecie) jeśli nadal ktoś odwołuje się do legacy API.
+
+6) Usunięcie ContentVideo (Dzień X+1)
+- Upewnij się, że od co najmniej 1 cyklu wydawniczego nie ma wywołań legacy API.
+- Usuń w swojej aplikacji zależności od ContentVideo: zapytania, seedy, form requesty, kontrolery.
+- W tym pakiecie w kolejnym wydaniu można:
+  - usunąć model Dominservice\\LaravelCms\\Models\\ContentVideo,
+  - usunąć relację Content::video() i accessor getVideoPathAttribute(),
+  - usunąć klucz tabeli 'content_video' z configu,
+  - dodać migration drop table cms_content_videos (jeśli tabela jest własnością pakietu i nie jest używana gdzie indziej).
+
+Weryfikacja po migracji
+- Sprawdzanie spójności rekordów:
+```sql
+-- treści posiadające legacy video bez nowego wpisu w files
+SELECT v.content_uuid
+FROM cms_content_videos v
+LEFT JOIN cms_content_files f
+  ON f.content_uuid = v.content_uuid AND f.kind = 'video_avatar' AND f.deleted_at IS NULL
+WHERE f.uuid IS NULL;
+```
+- Sprawdź poprawność URL:
+  - Dla kilku rekordów pobierz $content->video_avatar_path i zweryfikuj, że plik istnieje na dysku config('cms.disks.content_video').
+- Testy E2E/aplikacyjne:
+  - Widok listy i detali Content wyświetla właściwy plik wideo/poster.
+  - Upload nowych wideo trafia do cms_content_files, a nie do cms_content_videos.
+
+Rollback (awaryjnie)
+- Jeśli po backfillu zauważysz problemy:
+  - Możesz tymczasowo wrócić do accessorów opartych o ContentVideo (video_path), ponieważ pliki fizyczne nie zostały ruszone.
+  - Usuń lub soft-delete rekordy 'video_avatar' w cms_content_files, o ile to konieczne.
+  - Przywróć kopię bazy i/lub storage z backupu wykonanym w etapie 1.
+
+Checklist zmian w aplikacji (poza pakietem)
+- [ ] Wszystkie miejsca używające $content->video_path zrefaktoryzowane do $content->video_avatar_path.
+- [ ] Zapisy nowych wideo korzystają z Media::uploadModelVideos.
+- [ ] W widokach/posterach użyty $content->video_poster_path (jeśli wymagane).
+- [ ] Monitoring 404 dla wideo — brak.
+- [ ] Feature toggles/konfiguracja wyłączająca stare API — wdrożona.
+
+Notatki
+- W tym pakiecie pozostawiono ContentVideo dla kompatybilności. Plan zakłada jego usunięcie w kolejnym głównym wydaniu po okresie przejściowym. Jeśli chcesz, możesz przyspieszyć usunięcie w swoim forku/projekcie, stosując się do listy w punkcie 6.

@@ -109,4 +109,28 @@ trait DynamicAvatarAccessor
         }
         return 'content';
     }
+
+    /**
+     * Return a collection of file records that are images (files.type = 'image').
+     * Falls back to empty collection if the model doesn't define files() relation.
+     */
+    public function imageFilesList()
+    {
+        if (method_exists($this, 'files')) {
+            return $this->files()->where('type', 'image')->get();
+        }
+        return collect();
+    }
+
+    /**
+     * Return a collection of file records that are videos (files.type = 'video').
+     * Falls back to empty collection if the model doesn't define files() relation.
+     */
+    public function videoFilesList()
+    {
+        if (method_exists($this, 'files')) {
+            return $this->files()->where('type', 'video')->get();
+        }
+        return collect();
+    }
 }
