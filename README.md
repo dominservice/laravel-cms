@@ -402,6 +402,28 @@ Rozszerzanie: nowe typy plików i rozmiary
 - Zdefiniuj rozmiary (klucze i parametry). Następnie w logice zapisu generuj nazwy i uzupełniaj je w kolumnie names (JSON) w odpowiadających rekordach *_files.
 - Dzięki temu możesz tworzyć dodatkowe accessorowe ścieżki dynamiczne np. for each size w avatarze; dla innych typów możesz dodać własne accessory lub korzystać bezpośrednio z pól w bazie.
 
+Jak pobierać ścieżki/URL z poziomu modeli Content i Category
+- Avatar (obraz):
+  - $model->avatar_path — URL rozmiaru wskazanego w config('cms.files.{content|category}.types.avatar.display').
+  - Dostęp do konkretnych rozmiarów: $model->{size}_avatar_path, np. $model->thumb_avatar_path, $model->small_avatar_path.
+- Inne pliki obrazów (np. 'additional'):
+  - $file = $model->files()->where('kind', 'additional')->first();
+  - if ($file) { foreach ($file->names as $size => $name) { $url = Storage::disk(config('cms.disks.' . ($model instanceof \Dominservice\LaravelCms\Models\Category ? 'category' : 'content')))->url($name); }}
+- Wideo:
+  - Avatar wideo (domyślny wariant wg display): $model->video_avatar_path — zwraca URL wariantu zdefiniowanego w display (domyślnie 'hd').
+  - Avatar wideo w konkretnym rozmiarze (np. mobile/sd/hd): $model->{size}_video_avatar_path, np. $model->mobile_video_avatar_path. Zwraca URL lub null jeśli brak pliku dla danego klucza rozmiaru.
+  - Poster wideo: $model->video_poster_path — URL jak dla obrazów.
+- Listy:
+  - $model->imageFilesList() — kolekcja rekordów *_files, gdzie type = 'image'.
+  - $model->videoFilesList() — kolekcja rekordów *_files, gdzie type = 'video'.
+
+Automatyczne dołączanie starszych plików do *_files podczas aktualizacji
+- Jeśli na dysku znajdują się pliki ze starszej wersji pakietu (v2) bez odpowiedniego wpisu w *_files, to przy najbliższym zapisie/aktualizacji pliku przez helper Media zostaną one automatycznie dopisane do modelu ContentFile/CategoryFile.
+- Obsługiwane przypadki:
+  - Avatar (obraz): content_{uuid}.webp, content{uuid}.webp, {uuid}.webp (dla treści) lub analogicznie dla kategorii; zostaną wpisane pod kluczem display (np. 'large').
+  - Wideo (Content): video_{uuid}.mp4 lub video_{uuid}.webm na dysku content_video (lub content) — zostanie wpisane pod kluczem display (np. 'hd').
+- Dzięki temu dalsze przetwarzanie z użyciem modeli i accessorów jest spójne.
+
 Uwagi dot. zgodności wstecznej
 - Nazwy plików nie są już generowane na podstawie atrybutów modelu – są niezależne (ULID + rozszerzenie z konfiguracji).
 - Odczyt odbywa się wyłącznie na podstawie wartości zapisanych w tabelach zależnych (names[size]). Jeśli rekordów brak, accessory zwrócą null.

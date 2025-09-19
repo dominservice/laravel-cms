@@ -16,6 +16,66 @@ use InvalidArgumentException;
 class Media
 {
     /**
+     * Detect legacy single-file assets for a given model/kind and map them into names array
+     * using the configured display key. This is used to backfill records created in v2
+     * where files existed on disk but no *_files metadata was present.
+     *
+     * For images (kind = 'avatar') we look for:
+     *  - content_{uuid}.webp, content{uuid}.webp, {uuid}.webp on the entity disk
+     * For content videos (kind = 'video_avatar') we look for:
+     *  - video_{uuid}.mp4 or .webm on the content_video (or content) disk
+     */
+    protected static function detectLegacyNames(Model $model, string $kind, string $diskKey): array
+    {
+        $out = [];
+        // Determine entity key and display size config for mapping
+        $entityKey = $model instanceof Category ? 'category' : ($model instanceof Content ? 'content' : null);
+        if (!$entityKey) { return $out; }
+
+        $displayKey = (string) (config("cms.files.$entityKey.types.$kind.display") ?: ($kind === 'avatar' ? 'large' : ($kind === 'video_avatar' ? 'hd' : 'large')));
+
+        // Legacy for avatar images
+        if ($kind === 'avatar') {
+            $uuid = $model->uuid ?? null;
+            if (is_string($uuid) && $uuid !== '') {
+                $ext = ltrim((string)config('cms.avatar.extension', 'webp'), '.');
+                $candidates = [
+                    $entityKey . '_' . $uuid . '.' . $ext,
+                    $entityKey . $uuid . '.' . $ext,
+                    $uuid . '.' . $ext,
+                ];
+                $disk = Storage::disk($diskKey);
+                foreach ($candidates as $name) {
+                    if ($disk->exists($name)) {
+                        $out[$displayKey] = $name;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Legacy for content video single file
+        if ($kind === 'video_avatar' && $model instanceof Content) {
+            $uuid = $model->uuid ?? null;
+            if (is_string($uuid) && $uuid !== '') {
+                // Prefer dedicated video disk if configured
+                $videoDiskKey = config('cms.disks.content_video') ?: $diskKey;
+                $disk = Storage::disk($videoDiskKey);
+                $candidates = [
+                    'video_' . $uuid . '.mp4',
+                    'video_' . $uuid . '.webm',
+                ];
+                foreach ($candidates as $name) {
+                    if ($disk->exists($name)) {
+                        $out[$displayKey] = $name;
+                        break;
+                    }
+                }
+            }
+        }
+        return $out;
+    }
+    /**
      * Upload one source image for a model and generate multiple sizes.
      * - If $onlySizes is null, all sizes from config will be generated (including 'original' if defined)
      * - If $onlySizes is provided (e.g. ['large','thumb']), only those keys will be generated (if present in config)
@@ -135,7 +195,18 @@ class Media
             return $existing;
         }
 
-        // If we are creating a new video record and replaceExisting is requested, clean legacy too
+        // When there is no existing record, try to backfill legacy single-file assets into metadata
+        if (!$existing) {
+            $legacy = self::detectLegacyNames($model, $kind, $diskKey);
+            // Merge only if target key is missing
+            foreach ($legacy as $k => $v) {
+                if (!isset($names[$k])) {
+                    $names[$k] = $v;
+                }
+            }
+        }
+
+        // If we are creating a new video record and replaceExisting is requested, clean legacy too (after we captured legacy name into metadata)
         if ($replace && !$existing && str_starts_with($kind, 'video')) {
             self::deleteLegacyVideoForContent($model);
         }
@@ -161,6 +232,16 @@ class Media
             $existing->names = $names;
             $existing->save();
             return $existing;
+        }
+
+        // Backfill legacy avatar file for categories when creating new record
+        if (!$existing) {
+            $legacy = self::detectLegacyNames($model, $kind, $diskKey);
+            foreach ($legacy as $k => $v) {
+                if (!isset($names[$k])) {
+                    $names[$k] = $v;
+                }
+            }
         }
 
         return CategoryFile::create([

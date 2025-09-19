@@ -27,7 +27,23 @@ trait DynamicAvatarAccessor
      */
     public function __get($key)
     {
-        if (is_string($key) && str_ends_with($key, '_avatar_path')) {
+        if (!is_string($key)) {
+            return parent::__get($key);
+        }
+
+        // 1) Dynamic video avatar sizes: e.g. mobile_video_avatar_path, hd_video_avatar_path
+        if (str_ends_with($key, '_video_avatar_path')) {
+            $size = substr($key, 0, -strlen('_video_avatar_path'));
+            if ($size !== '') {
+                $val = $this->resolveVideoUrlForSize($size);
+                if ($val !== null) {
+                    return $val;
+                }
+            }
+        }
+
+        // 2) Dynamic image avatar sizes: small_avatar_path, thumb_avatar_path (optionally mobile_thumb_avatar_path)
+        if (str_ends_with($key, '_avatar_path')) {
             $raw = substr($key, 0, -strlen('_avatar_path'));
             if ($raw !== 'avatar') {
                 $profile = null;
@@ -213,6 +229,40 @@ trait DynamicAvatarAccessor
                     return Storage::disk($diskKey)->url($legacy);
                 }
             }
+        }
+        return null;
+    }
+
+    /**
+     * Resolve URL for a concrete video size key, e.g. 'mobile', 'sd', 'hd'.
+     */
+    protected function resolveVideoUrlForSize(string $size): ?string
+    {
+        $configKey = $this->getFileConfigKey();
+        // Determine proper disk. For content videos prefer a dedicated disk.
+        if ($configKey === 'content') {
+            $diskKey = config('cms.disks.content_video') ?: config('cms.disks.content');
+        } else {
+            $diskKey = config("cms.disks.$configKey");
+        }
+        if (!$diskKey) {
+            return null;
+        }
+
+        // Locate the video file record
+        $file = null;
+        if (method_exists($this, 'files')) {
+            $file = $this->files()->where('kind', 'video_avatar')->first();
+        } elseif (method_exists($this, 'video')) {
+            $file = $this->video()->first();
+        }
+        if (!$file || !is_array($file->names)) {
+            return null;
+        }
+
+        $name = $file->names[$size] ?? null;
+        if (is_string($name) && $name !== '' && Storage::disk($diskKey)->exists($name)) {
+            return Storage::disk($diskKey)->url($name);
         }
         return null;
     }
