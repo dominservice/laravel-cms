@@ -64,9 +64,16 @@ trait DynamicAvatarAccessor
     {
         // Try to get the avatar file record
         $file = method_exists($this, 'avatarFile') ? $this->avatarFile()->first() : (method_exists($this, 'files') ? $this->files()->where('kind', 'avatar')->first() : null);
-        if (!$file || !is_array($file->names)) {
+        $diskKey = config("cms.disks." . $this->getFileConfigKey());
+        if (!$diskKey) {
             return null;
         }
+
+        if (!$file || !is_array($file->names)) {
+            // No new metadata -> try legacy filename directly
+            return $this->resolveLegacyAvatarUrl($diskKey);
+        }
+
         $names = $file->names;
         // If nested by profile, pick requested profile or default to desktop if available, otherwise first profile
         if (isset($names['mobile']) || isset($names['desktop'])) {
@@ -81,24 +88,17 @@ trait DynamicAvatarAccessor
                     if (is_array($v)) { $bucket = $v; break; }
                 }
             }
-            if (!$bucket || !isset($bucket[$size])) {
-                return null;
-            }
-            $name = $bucket[$size];
+            $name = $bucket[$size] ?? null;
         } else {
-            if (!isset($names[$size])) {
-                return null;
-            }
-            $name = $names[$size];
+            $name = $names[$size] ?? null;
         }
-        $diskKey = config("cms.disks." . $this->getFileConfigKey());
-        if (!$diskKey) {
-            return null;
-        }
-        if (Storage::disk($diskKey)->exists($name)) {
+
+        if (is_string($name) && $name !== '' && Storage::disk($diskKey)->exists($name)) {
             return Storage::disk($diskKey)->url($name);
         }
-        return null;
+
+        // Fallback: try legacy single-file avatar naming (prefix + uuid + .ext)
+        return $this->resolveLegacyAvatarUrl($diskKey);
     }
 
     protected function getFileConfigKey(): string
@@ -108,6 +108,34 @@ trait DynamicAvatarAccessor
             return $this->fileConfigKey;
         }
         return 'content';
+    }
+
+    /**
+     * Try to resolve avatar using legacy naming like `content_{uuid}.webp` or `category{uuid}.webp`.
+     */
+    protected function resolveLegacyAvatarUrl(string $diskKey): ?string
+    {
+        // Only for images; videos are handled elsewhere and not affected.
+        $prefix = $this->getFileConfigKey(); // 'content' or 'category'
+        $uuid = $this->uuid ?? null;
+        if (!$uuid || !is_string($uuid)) {
+            return null;
+        }
+        $ext = ltrim((string)config('cms.avatar.extension', 'webp'), '.');
+
+        $candidates = [
+            $prefix . '_' . $uuid . '.' . $ext,
+            $prefix . $uuid . '.' . $ext,
+            // Also try without prefix, just in case older installs saved as {uuid}.ext
+            $uuid . '.' . $ext,
+        ];
+
+        foreach ($candidates as $name) {
+            if (Storage::disk($diskKey)->exists($name)) {
+                return Storage::disk($diskKey)->url($name);
+            }
+        }
+        return null;
     }
 
     /**

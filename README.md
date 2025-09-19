@@ -440,6 +440,7 @@ Uwagi dot. zgodności wstecznej
 - Nazwy plików nie są już generowane na podstawie atrybutów modelu – są niezależne (ULID + rozszerzenie z konfiguracji).
 - Odczyt odbywa się wyłącznie na podstawie wartości zapisanych w tabelach zależnych (names[size]). Jeśli rekordów brak, accessory zwrócą null.
 - Wybór rozmiaru avataru eksponowanego jako avatar_path jest kontrolowany przez konfigurację (display).
+- Legacy avatar_path (bez konieczności ponownego uploadu): Jeśli w starszej wersji pakietu nazwy plików avatarów były w formacie prefix + uuid + rozszerzenie (np. content_{$uuid}.webp lub category{$uuid}.webp), trait DynamicAvatarAccessor automatycznie sprawdzi takie nazwy na odpowiednim dysku, gdy nie znajdzie plików według nowych metadanych. Obsługiwane warianty prefiksów: '{entity}_', '{entity}' oraz sam '{uuid}'. Rozszerzenie jest pobierane z config('cms.avatar.extension') (domyślnie webp). Dzięki temu istniejące obrazy będą wyświetlane bez potrzeby ponownego wgrywania. Fallback dotyczy tylko obrazów (nie dotyczy wideo).
 
 FAQ / Troubleshooting
 - Nie widzę URL w avatar_path: Upewnij się, że istnieje rekord w *_files o kind = 'avatar' z wypełnionym names[display]. Sprawdź też, czy plik fizycznie istnieje na skonfigurowanym dysku i czy storage:link jest utworzone.
