@@ -73,6 +73,30 @@ class Media
                 }
             }
         }
+
+        // Legacy for content video poster (single image stored without metadata in v2)
+        if ($kind === 'video_poster' && $model instanceof Content) {
+            $uuid = $model->uuid ?? null;
+            if (is_string($uuid) && $uuid !== '') {
+                $disk = Storage::disk($diskKey); // posters are on image disk
+                $candidates = [
+                    'video_' . $uuid . '.webp',
+                    'video_' . $uuid . '.jpg',
+                    'video_' . $uuid . '.jpeg',
+                    'video_' . $uuid . '.png',
+                    'poster_' . $uuid . '.webp',
+                    'poster_' . $uuid . '.jpg',
+                    'poster_' . $uuid . '.jpeg',
+                    'poster_' . $uuid . '.png',
+                ];
+                foreach ($candidates as $name) {
+                    if ($disk->exists($name)) {
+                        $out[$displayKey] = $name;
+                        break;
+                    }
+                }
+            }
+        }
         return $out;
     }
     /**
@@ -143,9 +167,9 @@ class Media
 
         // Upsert DB record and cleanup old files if needed
         if ($model instanceof Content) {
-            $record = self::upsertContentFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+            $record = self::upsertContentFile($model, $kind, $type, $names, $diskKey, $replaceExisting, $onlySizes);
         } elseif ($model instanceof Category) {
-            $record = self::upsertCategoryFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+            $record = self::upsertCategoryFile($model, $kind, $type, $names, $diskKey, $replaceExisting, $onlySizes);
         } else {
             throw new InvalidArgumentException('Unsupported model given.');
         }
@@ -176,7 +200,39 @@ class Media
         return [$entityKey, $diskKey, $sizesCfg];
     }
 
-    protected static function upsertContentFile(Content $model, string $kind, ?string $type, array $names, string $diskKey, bool $replace): ContentFile
+    /**
+     * Merge new names into existing and compute files to delete (for partial replace).
+     * Returns [array $mergedNames, array $toDeleteNames]
+     */
+    protected static function mergeNamesWithDeletions(array $existingNames, array $newNames): array
+    {
+        $toDelete = [];
+        $walker = function($newPart, $oldPart) use (&$walker, &$toDelete) {
+            if (!is_array($newPart) || !is_array($oldPart)) {
+                return;
+            }
+            foreach ($newPart as $k => $v) {
+                if (!array_key_exists($k, $oldPart)) {
+                    continue;
+                }
+                if (is_array($v) && is_array($oldPart[$k])) {
+                    $walker($v, $oldPart[$k]);
+                } else {
+                    $candidate = $oldPart[$k];
+                    if (is_array($candidate)) {
+                        foreach ($candidate as $vv) { if (is_string($vv)) { $toDelete[] = $vv; } }
+                    } elseif (is_string($candidate)) {
+                        $toDelete[] = $candidate;
+                    }
+                }
+            }
+        };
+        $walker($newNames, $existingNames);
+        $merged = array_replace_recursive($existingNames, $newNames);
+        return [$merged, $toDelete];
+    }
+
+    protected static function upsertContentFile(Content $model, string $kind, ?string $type, array $names, string $diskKey, bool $replace, ?array $onlySizes = null): ContentFile
     {
         $query = ContentFile::query()->where('content_uuid', $model->uuid)->where('kind', $kind);
         if ($type !== null) {
@@ -189,8 +245,22 @@ class Media
             if (str_starts_with($kind, 'video')) {
                 self::deleteLegacyVideoForContent($model);
             }
-            self::deletePhysicalFiles($existing->names ?? [], $diskKey);
-            $existing->names = $names;
+
+            $existingNames = is_array($existing->names) ? $existing->names : [];
+
+            if ($onlySizes === null) {
+                // Full replace: delete all old files and overwrite names entirely
+                self::deletePhysicalFiles($existingNames, $diskKey);
+                $existing->names = $names;
+            } else {
+                // Partial replace: delete only the files for sizes being replaced and merge names
+                [$merged, $toDelete] = self::mergeNamesWithDeletions($existingNames, $names);
+                if (!empty($toDelete)) {
+                    self::deletePhysicalFiles($toDelete, $diskKey);
+                }
+                $existing->names = $merged;
+            }
+
             $existing->save();
             return $existing;
         }
@@ -219,7 +289,7 @@ class Media
         ]);
     }
 
-    protected static function upsertCategoryFile(Category $model, string $kind, ?string $type, array $names, string $diskKey, bool $replace): CategoryFile
+    protected static function upsertCategoryFile(Category $model, string $kind, ?string $type, array $names, string $diskKey, bool $replace, ?array $onlySizes = null): CategoryFile
     {
         $query = CategoryFile::query()->where('category_uuid', $model->uuid)->where('kind', $kind);
         if ($type !== null) {
@@ -228,8 +298,21 @@ class Media
         $existing = $query->first();
 
         if ($existing && $replace) {
-            self::deletePhysicalFiles($existing->names ?? [], $diskKey);
-            $existing->names = $names;
+            $existingNames = is_array($existing->names) ? $existing->names : [];
+
+            if ($onlySizes === null) {
+                // Full replace: delete all old files and overwrite names entirely
+                self::deletePhysicalFiles($existingNames, $diskKey);
+                $existing->names = $names;
+            } else {
+                // Partial replace: delete only the files for sizes being replaced and merge names
+                [$merged, $toDelete] = self::mergeNamesWithDeletions($existingNames, $names);
+                if (!empty($toDelete)) {
+                    self::deletePhysicalFiles($toDelete, $diskKey);
+                }
+                $existing->names = $merged;
+            }
+
             $existing->save();
             return $existing;
         }
@@ -466,15 +549,15 @@ class Media
         }
 
         if ($model instanceof Content) {
-            $record = self::upsertContentFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+            $record = self::upsertContentFile($model, $kind, $type, $names, $diskKey, $replaceExisting, $onlySizes);
         } elseif ($model instanceof Category) {
-            $record = self::upsertCategoryFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+            $record = self::upsertCategoryFile($model, $kind, $type, $names, $diskKey, $replaceExisting, $onlySizes);
         } else {
             throw new InvalidArgumentException('Unsupported model given.');
         }
 
         return $record;
-        }
+    }
 
     /**
      * Upload multiple pre-encoded video files (by sizes) for a model as a single logical entry.
@@ -556,11 +639,11 @@ class Media
 
         // Upsert DB metadata into the files table for consistency with images
         if ($model instanceof Content) {
-            return self::upsertContentFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+            return self::upsertContentFile($model, $kind, $type, $names, $diskKey, $replaceExisting, $onlySizes);
         }
         // For Category, reuse category files table and its disk
         if ($model instanceof Category) {
-            return self::upsertCategoryFile($model, $kind, $type, $names, $diskKey, $replaceExisting);
+            return self::upsertCategoryFile($model, $kind, $type, $names, $diskKey, $replaceExisting, $onlySizes);
         }
 
         // Should never reach here due to earlier guard

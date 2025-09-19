@@ -7,10 +7,39 @@ use Illuminate\Support\Facades\Storage;
 trait DynamicAvatarAccessor
 {
     /**
+     * Simple per-request cache for resolved media URLs to avoid repeated disk I/O.
+     * Keys format: kind:size (e.g., avatar:large, video:hd, poster:small, poster:display)
+     */
+    protected array $_mediaUrlCache = [];
+
+    /**
      * The model using this trait should define a protected string $fileConfigKey
      * to determine which config branch and disk to use (e.g. 'content' or 'category').
      * If it's not defined in the model, we will gracefully fall back to 'content'.
      */
+
+    /**
+     * Build URL with cache-busting version parameter based on last modified time.
+     */
+    protected function urlWithVersion(string $diskKey, string $name): ?string
+    {
+        try {
+            $disk = Storage::disk($diskKey);
+            if (!$disk->exists($name)) {
+                return null;
+            }
+            $url = $disk->url($name);
+            $ver = null;
+            try {
+                $ver = (string) $disk->lastModified($name);
+            } catch (\Throwable $e) {
+                $ver = null;
+            }
+            return $url . ($ver ? ('?v=' . $ver) : '');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
 
     /**
      * Main avatar accessor. Returns URL for the configured display size.
@@ -18,7 +47,110 @@ trait DynamicAvatarAccessor
     public function getAvatarPathAttribute()
     {
         $size = $this->getConfiguredAvatarDisplaySize();
-        return $this->resolveAvatarUrlForSize($size);
+        $cacheKey = 'avatar:' . $size;
+        if (array_key_exists($cacheKey, $this->_mediaUrlCache)) {
+            return $this->_mediaUrlCache[$cacheKey];
+        }
+        $url = $this->resolveAvatarUrlForSize($size);
+        $this->_mediaUrlCache[$cacheKey] = $url;
+        return $url;
+    }
+
+    /**
+     * Backward-compatible video path accessor shared by models using this trait.
+     * It resolves URL from new *File(kind='video_avatar') by configured display size
+     * and, for Content models only, falls back to legacy naming video_{uuid}.mp4
+     * on the content_video disk if no metadata-based file is available.
+     */
+    public function getVideoPathAttribute(): ?string
+    {
+        $configKey = $this->getFileConfigKey(); // 'content' or 'category'
+        $display = (string) (config("cms.files.$configKey.types.video_avatar.display") ?: 'hd');
+        $cacheKey = 'video:' . $display;
+        if (array_key_exists($cacheKey, $this->_mediaUrlCache)) {
+            return $this->_mediaUrlCache[$cacheKey];
+        }
+
+        // Determine proper disk. For content videos prefer a dedicated disk.
+        if ($configKey === 'content') {
+            $diskKey = config('cms.disks.content_video') ?: config('cms.disks.content');
+        } else {
+            $diskKey = config("cms.disks.$configKey");
+        }
+        if (!$diskKey) {
+            $this->_mediaUrlCache[$cacheKey] = null;
+            return null;
+        }
+
+        // Try to locate the video file record.
+        $file = null;
+        if (method_exists($this, 'files')) {
+            $file = $this->files()->where('kind', 'video_avatar')->first();
+        } elseif (method_exists($this, 'video')) {
+            $file = $this->video()->first();
+        }
+
+        if ($file && is_array($file->names)) {
+            $name = $file->names[$display] ?? null;
+            if (is_string($name) && $name !== '') {
+                $u = $this->urlWithVersion($diskKey, $name);
+                if ($u !== null) {
+                    return $this->_mediaUrlCache[$cacheKey] = $u;
+                }
+            }
+            // Fallback to any available variant
+            foreach ($file->names as $n) {
+                if (is_string($n) && $n !== '') {
+                    $u2 = $this->urlWithVersion($diskKey, $n);
+                    if ($u2 !== null) {
+                        return $this->_mediaUrlCache[$cacheKey] = $u2;
+                    }
+                }
+            }
+        }
+
+        // Legacy fallback only for Content models: video_{uuid}.mp4 on content_video disk
+        if ($configKey === 'content') {
+            $uuid = $this->uuid ?? null;
+            if (is_string($uuid) && $uuid !== '') {
+                $legacy = 'video_' . $uuid . '.mp4';
+                if (Storage::disk($diskKey)->exists($legacy)) {
+                    $u3 = $this->urlWithVersion($diskKey, $legacy);
+                    if ($u3 !== null) {
+                        return $this->_mediaUrlCache[$cacheKey] = $u3;
+                    }
+                }
+            }
+        }
+        $this->_mediaUrlCache[$cacheKey] = null;
+        return null;
+    }
+
+    /**
+     * Main video poster accessor. Returns URL for the configured display size.
+     * Backward compatible with v2: if no metadata-based poster found, tries legacy filenames
+     * on the image disk and finally falls back to avatar image.
+     */
+    public function getVideoPosterPathAttribute(): ?string
+    {
+        $size = $this->getConfiguredPosterDisplaySize();
+        $cacheKey = 'poster:' . $size;
+        if (array_key_exists($cacheKey, $this->_mediaUrlCache)) {
+            return $this->_mediaUrlCache[$cacheKey];
+        }
+        $url = $this->resolvePosterUrlForSize($size);
+        if ($url !== null) {
+            return $this->_mediaUrlCache[$cacheKey] = $url;
+        }
+        $diskKey = config("cms.disks." . $this->getFileConfigKey());
+        if (is_string($diskKey) && $diskKey !== '') {
+            $legacy = $this->resolveLegacyPosterUrl($diskKey);
+            if ($legacy !== null) {
+                return $this->_mediaUrlCache[$cacheKey] = $legacy;
+            }
+        }
+        // Final fallback: use avatar image if available
+        return $this->_mediaUrlCache[$cacheKey] = ($this->avatar_path ?? null);
     }
 
     /**
@@ -98,15 +230,6 @@ trait DynamicAvatarAccessor
         return 'large';
     }
 
-    /**
-     * Main video poster accessor. Returns URL for the configured display size.
-     */
-    public function getVideoPosterPathAttribute(): ?string
-    {
-        $size = $this->getConfiguredPosterDisplaySize();
-        return $this->resolvePosterUrlForSize($size);
-    }
-
     protected function resolveAvatarUrlForSize(string $size, ?string $profile = null): ?string
     {
         // Try to get the avatar file record
@@ -140,8 +263,11 @@ trait DynamicAvatarAccessor
             $name = $names[$size] ?? null;
         }
 
-        if (is_string($name) && $name !== '' && Storage::disk($diskKey)->exists($name)) {
-            return Storage::disk($diskKey)->url($name);
+        if (is_string($name) && $name !== '') {
+            $u = $this->urlWithVersion($diskKey, $name);
+            if ($u !== null) {
+                return $u;
+            }
         }
 
         // Fallback: try legacy single-file avatar naming (prefix + uuid + .ext)
@@ -179,7 +305,10 @@ trait DynamicAvatarAccessor
 
         foreach ($candidates as $name) {
             if (Storage::disk($diskKey)->exists($name)) {
-                return Storage::disk($diskKey)->url($name);
+                $u = $this->urlWithVersion($diskKey, $name);
+                if ($u !== null) {
+                    return $u;
+                }
             }
         }
         return null;
@@ -210,61 +339,6 @@ trait DynamicAvatarAccessor
     }
 
     /**
-     * Backward-compatible video path accessor shared by models using this trait.
-     * It resolves URL from new *File(kind='video_avatar') by configured display size
-     * and, for Content models only, falls back to legacy naming video_{uuid}.mp4
-     * on the content_video disk if no metadata-based file is available.
-     */
-    public function getVideoPathAttribute(): ?string
-    {
-        $configKey = $this->getFileConfigKey(); // 'content' or 'category'
-        $display = (string) (config("cms.files.$configKey.types.video_avatar.display") ?: 'hd');
-
-        // Determine proper disk. For content videos prefer a dedicated disk.
-        if ($configKey === 'content') {
-            $diskKey = config('cms.disks.content_video') ?: config('cms.disks.content');
-        } else {
-            $diskKey = config("cms.disks.$configKey");
-        }
-        if (!$diskKey) {
-            return null;
-        }
-
-        // Try to locate the video file record.
-        $file = null;
-        if (method_exists($this, 'files')) {
-            $file = $this->files()->where('kind', 'video_avatar')->first();
-        } elseif (method_exists($this, 'video')) {
-            $file = $this->video()->first();
-        }
-
-        if ($file && is_array($file->names)) {
-            $name = $file->names[$display] ?? null;
-            if (is_string($name) && $name !== '' && Storage::disk($diskKey)->exists($name)) {
-                return Storage::disk($diskKey)->url($name);
-            }
-            // Fallback to any available variant
-            foreach ($file->names as $n) {
-                if (is_string($n) && $n !== '' && Storage::disk($diskKey)->exists($n)) {
-                    return Storage::disk($diskKey)->url($n);
-                }
-            }
-        }
-
-        // Legacy fallback only for Content models: video_{uuid}.mp4 on content_video disk
-        if ($configKey === 'content') {
-            $uuid = $this->uuid ?? null;
-            if (is_string($uuid) && $uuid !== '') {
-                $legacy = 'video_' . $uuid . '.mp4';
-                if (Storage::disk($diskKey)->exists($legacy)) {
-                    return Storage::disk($diskKey)->url($legacy);
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
      * Resolve URL for a concrete video size key, e.g. 'mobile', 'sd', 'hd'.
      */
     protected function resolveVideoUrlForSize(string $size): ?string
@@ -292,14 +366,18 @@ trait DynamicAvatarAccessor
         }
 
         $name = $file->names[$size] ?? null;
-        if (is_string($name) && $name !== '' && Storage::disk($diskKey)->exists($name)) {
-            return Storage::disk($diskKey)->url($name);
+        if (is_string($name) && $name !== '') {
+            $u = $this->urlWithVersion($diskKey, $name);
+            if ($u !== null) {
+                return $u;
+            }
         }
         return null;
     }
 
     /**
      * Resolve URL for a concrete video poster size key, e.g. 'small', 'large', 'thumb'.
+     * Falls back to legacy single-file poster names from v2 if metadata is missing.
      */
     protected function resolvePosterUrlForSize(string $size): ?string
     {
@@ -317,12 +395,47 @@ trait DynamicAvatarAccessor
             $file = $this->videoPoster()->first();
         }
         if (!$file || !is_array($file->names)) {
-            return null;
+            // Try legacy poster naming from v2
+            return $this->resolveLegacyPosterUrl($diskKey);
         }
 
         $name = $file->names[$size] ?? null;
-        if (is_string($name) && $name !== '' && Storage::disk($diskKey)->exists($name)) {
-            return Storage::disk($diskKey)->url($name);
+        if (is_string($name) && $name !== '') {
+            $u = $this->urlWithVersion($diskKey, $name);
+            if ($u !== null) {
+                return $u;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Try to resolve legacy poster using common v2 naming patterns like
+     * video_{uuid}.webp|jpg|jpeg|png or poster_{uuid}.webp|jpg|jpeg|png on the image disk.
+     */
+    protected function resolveLegacyPosterUrl(string $diskKey): ?string
+    {
+        $uuid = $this->uuid ?? null;
+        if (!is_string($uuid) || $uuid === '') {
+            return null;
+        }
+        $candidates = [
+            'video_' . $uuid . '.webp',
+            'video_' . $uuid . '.jpg',
+            'video_' . $uuid . '.jpeg',
+            'video_' . $uuid . '.png',
+            'poster_' . $uuid . '.webp',
+            'poster_' . $uuid . '.jpg',
+            'poster_' . $uuid . '.jpeg',
+            'poster_' . $uuid . '.png',
+        ];
+        foreach ($candidates as $name) {
+            if (Storage::disk($diskKey)->exists($name)) {
+                $u = $this->urlWithVersion($diskKey, $name);
+                if ($u !== null) {
+                    return $u;
+                }
+            }
         }
         return null;
     }

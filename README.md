@@ -412,7 +412,7 @@ Jak pobierać ścieżki/URL z poziomu modeli Content i Category
 - Wideo:
   - Avatar wideo (domyślny wariant wg display): $model->video_avatar_path — zwraca URL wariantu zdefiniowanego w display (domyślnie 'hd').
   - Avatar wideo w konkretnym rozmiarze (np. mobile/sd/hd): $model->{size}_video_avatar_path, np. $model->mobile_video_avatar_path. Zwraca URL lub null jeśli brak pliku dla danego klucza rozmiaru.
-  - Poster wideo: $model->video_poster_path — URL jak dla obrazów.
+  - Poster wideo: $model->video_poster_path — URL jak dla obrazów. W trybie kompatybilności wstecznej (gdy brak rekordu kind = 'video_poster') accessor sprawdzi również legacy nazwy obrazów z v2 (np. content_{uuid}.webp/category_{uuid}.webp/{uuid}.webp) na odpowiednim dysku i zwróci ich URL, jeśli istnieją.
 - Listy:
   - $model->imageFilesList() — kolekcja rekordów *_files, gdzie type = 'image'.
   - $model->videoFilesList() — kolekcja rekordów *_files, gdzie type = 'video'.
