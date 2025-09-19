@@ -10,6 +10,7 @@ use Dominservice\LaravelCms\Traits\TranslatableLocales;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property string $uuid
@@ -133,4 +134,5 @@ class Content extends Model
         return $this->hasOne(ContentFile::class, 'content_uuid', 'uuid')
             ->where('kind', 'avatar');
     }
+
 }

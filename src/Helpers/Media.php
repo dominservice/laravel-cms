@@ -125,10 +125,19 @@ class Media
         $existing = $query->first();
 
         if ($existing && $replace) {
+            // Also remove potential legacy single-file video before replacing
+            if (str_starts_with($kind, 'video')) {
+                self::deleteLegacyVideoForContent($model);
+            }
             self::deletePhysicalFiles($existing->names ?? [], $diskKey);
             $existing->names = $names;
             $existing->save();
             return $existing;
+        }
+
+        // If we are creating a new video record and replaceExisting is requested, clean legacy too
+        if ($replace && !$existing && str_starts_with($kind, 'video')) {
+            self::deleteLegacyVideoForContent($model);
         }
 
         return ContentFile::create([
@@ -259,6 +268,29 @@ class Media
             }
         };
         $walker($names);
+    }
+
+    /**
+     * Delete legacy single-file video for Content imported from v2 (video_{uuid}.mp4 etc.).
+     * Does nothing if file not found.
+     */
+    protected static function deleteLegacyVideoForContent(Content $model): void
+    {
+        $diskKey = config('cms.disks.content_video') ?: config('cms.disks.content');
+        $uuid = $model->uuid ?? null;
+        if (!is_string($uuid) || $uuid === '') {
+            return;
+        }
+        $candidates = [
+            'video_' . $uuid . '.mp4',
+            'video_' . $uuid . '.webm',
+        ];
+        $disk = Storage::disk($diskKey);
+        foreach ($candidates as $name) {
+            if ($disk->exists($name)) {
+                $disk->delete($name);
+            }
+        }
     }
 
     /**

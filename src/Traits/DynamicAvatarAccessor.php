@@ -161,4 +161,59 @@ trait DynamicAvatarAccessor
         }
         return collect();
     }
+
+    /**
+     * Backward-compatible video path accessor shared by models using this trait.
+     * It resolves URL from new *File(kind='video_avatar') by configured display size
+     * and, for Content models only, falls back to legacy naming video_{uuid}.mp4
+     * on the content_video disk if no metadata-based file is available.
+     */
+    public function getVideoPathAttribute(): ?string
+    {
+        $configKey = $this->getFileConfigKey(); // 'content' or 'category'
+        $display = (string) (config("cms.files.$configKey.types.video_avatar.display") ?: 'hd');
+
+        // Determine proper disk. For content videos prefer a dedicated disk.
+        if ($configKey === 'content') {
+            $diskKey = config('cms.disks.content_video') ?: config('cms.disks.content');
+        } else {
+            $diskKey = config("cms.disks.$configKey");
+        }
+        if (!$diskKey) {
+            return null;
+        }
+
+        // Try to locate the video file record.
+        $file = null;
+        if (method_exists($this, 'files')) {
+            $file = $this->files()->where('kind', 'video_avatar')->first();
+        } elseif (method_exists($this, 'video')) {
+            $file = $this->video()->first();
+        }
+
+        if ($file && is_array($file->names)) {
+            $name = $file->names[$display] ?? null;
+            if (is_string($name) && $name !== '' && Storage::disk($diskKey)->exists($name)) {
+                return Storage::disk($diskKey)->url($name);
+            }
+            // Fallback to any available variant
+            foreach ($file->names as $n) {
+                if (is_string($n) && $n !== '' && Storage::disk($diskKey)->exists($n)) {
+                    return Storage::disk($diskKey)->url($n);
+                }
+            }
+        }
+
+        // Legacy fallback only for Content models: video_{uuid}.mp4 on content_video disk
+        if ($configKey === 'content') {
+            $uuid = $this->uuid ?? null;
+            if (is_string($uuid) && $uuid !== '') {
+                $legacy = 'video_' . $uuid . '.mp4';
+                if (Storage::disk($diskKey)->exists($legacy)) {
+                    return Storage::disk($diskKey)->url($legacy);
+                }
+            }
+        }
+        return null;
+    }
 }
