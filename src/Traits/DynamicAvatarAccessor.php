@@ -23,6 +23,7 @@ trait DynamicAvatarAccessor
 
     /**
      * Intercept dynamic access like `small_avatar_path`, `large_avatar_path`, `thumb_avatar_path`.
+     * Also handles `*_video_avatar_path` and `*_video_poster_path`.
      * Fallback to parent implementation for anything else.
      */
     public function __get($key)
@@ -42,7 +43,18 @@ trait DynamicAvatarAccessor
             }
         }
 
-        // 2) Dynamic image avatar sizes: small_avatar_path, thumb_avatar_path (optionally mobile_thumb_avatar_path)
+        // 2) Dynamic video poster sizes: e.g. small_video_poster_path, large_video_poster_path, thumb_video_poster_path
+        if (str_ends_with($key, '_video_poster_path')) {
+            $size = substr($key, 0, -strlen('_video_poster_path'));
+            if ($size !== '') {
+                $val = $this->resolvePosterUrlForSize($size);
+                if ($val !== null) {
+                    return $val;
+                }
+            }
+        }
+
+        // 3) Dynamic image avatar sizes: small_avatar_path, thumb_avatar_path (optionally mobile_thumb_avatar_path)
         if (str_ends_with($key, '_avatar_path')) {
             $raw = substr($key, 0, -strlen('_avatar_path'));
             if ($raw !== 'avatar') {
@@ -74,6 +86,25 @@ trait DynamicAvatarAccessor
         }
         // Sensible default if not configured
         return 'large';
+    }
+
+    protected function getConfiguredPosterDisplaySize(): string
+    {
+        $key = "cms.files." . $this->getFileConfigKey() . ".types.video_poster.display";
+        $size = config($key);
+        if (is_string($size) && $size !== '') {
+            return $size;
+        }
+        return 'large';
+    }
+
+    /**
+     * Main video poster accessor. Returns URL for the configured display size.
+     */
+    public function getVideoPosterPathAttribute(): ?string
+    {
+        $size = $this->getConfiguredPosterDisplaySize();
+        return $this->resolvePosterUrlForSize($size);
     }
 
     protected function resolveAvatarUrlForSize(string $size, ?string $profile = null): ?string
@@ -255,6 +286,35 @@ trait DynamicAvatarAccessor
             $file = $this->files()->where('kind', 'video_avatar')->first();
         } elseif (method_exists($this, 'video')) {
             $file = $this->video()->first();
+        }
+        if (!$file || !is_array($file->names)) {
+            return null;
+        }
+
+        $name = $file->names[$size] ?? null;
+        if (is_string($name) && $name !== '' && Storage::disk($diskKey)->exists($name)) {
+            return Storage::disk($diskKey)->url($name);
+        }
+        return null;
+    }
+
+    /**
+     * Resolve URL for a concrete video poster size key, e.g. 'small', 'large', 'thumb'.
+     */
+    protected function resolvePosterUrlForSize(string $size): ?string
+    {
+        $configKey = $this->getFileConfigKey();
+        $diskKey = config("cms.disks.$configKey"); // posters are images, use image disk
+        if (!$diskKey) {
+            return null;
+        }
+
+        // Locate the video poster file record
+        $file = null;
+        if (method_exists($this, 'files')) {
+            $file = $this->files()->where('kind', 'video_poster')->first();
+        } elseif (method_exists($this, 'videoPoster')) {
+            $file = $this->videoPoster()->first();
         }
         if (!$file || !is_array($file->names)) {
             return null;
