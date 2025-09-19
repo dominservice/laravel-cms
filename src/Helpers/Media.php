@@ -310,65 +310,9 @@ class Media
      */
     public static function uploadModelResponsiveImages(Model $model, array $sources, string $kind = 'avatar', ?string $type = null, ?array $onlySizes = null, bool $replaceExisting = true): Model
     {
-        [$entityKey, $diskKey, $sizesCfg] = self::resolveEntityContext($model, $kind);
-
-        // Base sizes (legacy config). We'll ignore any 'original' => null.
-        $sizes = $sizesCfg['sizes'] ?? [];
-        if ($onlySizes !== null) {
-            $sizes = array_intersect_key($sizes, array_flip($onlySizes));
-        }
-        // Drop any null configs (original)
-        $sizes = array_filter($sizes, function($cfg) {
-            return $cfg !== null;
-        });
-        if (empty($sizes)) {
-            throw new InvalidArgumentException("No sizes defined for responsive upload of {$kind}.");
-        }
-
-        /** @var FilesystemContract $disk */
-        $disk = Storage::disk($diskKey);
-
-        $resultNames = [];
-        foreach (['mobile','desktop'] as $profile) {
-            if (!array_key_exists($profile, $sources) || $sources[$profile] === null) {
-                continue;
-            }
-            $binary = self::readSourceBinary($sources[$profile]);
-            if ($binary === null) {
-                throw new InvalidArgumentException("Cannot read {$profile} source image.");
-            }
-            $profileNames = [];
-            foreach ($sizes as $sizeKey => $cfg) {
-                $filename = Name::generateImageName($entityKey . '-' . $kind . '-' . $profile . '-' . $sizeKey);
-                $w = Arr::get($cfg, 'w');
-                $h = Arr::get($cfg, 'h');
-                $fit = Arr::get($cfg, 'fit', 'contain');
-                $processed = self::resize($binary, (int)$w, (int)$h, (string)$fit);
-                if ($processed === null) {
-                    continue;
-                }
-                $disk->put($filename, $processed);
-                $profileNames[$sizeKey] = $filename;
-            }
-            if (!empty($profileNames)) {
-                $resultNames[$profile] = $profileNames;
-            }
-        }
-
-        if (empty($resultNames)) {
-            throw new InvalidArgumentException('No image variants generated for any profile.');
-        }
-
-        // Upsert DB record and cleanup old files if replacing
-        if ($model instanceof Content) {
-            $record = self::upsertContentFile($model, $kind, $type, $resultNames, $diskKey, $replaceExisting);
-        } elseif ($model instanceof Category) {
-            $record = self::upsertCategoryFile($model, $kind, $type, $resultNames, $diskKey, $replaceExisting);
-        } else {
-            throw new InvalidArgumentException('Unsupported model given.');
-        }
-
-        return $record;
+        // As of current version, uploads must NOT be split into mobile/desktop profiles.
+        // Only sizes declared in configuration are allowed. Use uploadModelImage() instead.
+        throw new InvalidArgumentException('Responsive uploads (mobile/desktop) are no longer supported. Use uploadModelImage() with sizes defined in config(cms.files.*).');
     }
 
     /**
