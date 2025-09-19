@@ -45,10 +45,6 @@ class Category extends Model
         'meta_description',
     ];
 
-    protected $appends = [
-        'avatar_path'
-    ];
-
     protected string $fileConfigKey = 'category';
 
     /**
@@ -89,20 +85,32 @@ class Category extends Model
 
     public function contents()
     {
-        return $this->belongsToMany(\Dominservice\LaravelCms\Models\Content::class
+        return $this->belongsToMany(Content::class
             , config('cms.tables.content_categories')
             , 'category_uuid'
             , 'version_uuid'
         );
     }
 
+    public function video()
+    {
+        return $this->belongsTo(CategoryFile::class, 'uuid', 'content_uuid')
+            ->where('kind', 'video_avatar');
+    }
+
+    public function videoPoster()
+    {
+        return $this->belongsTo(CategoryFile::class, 'uuid', 'content_uuid')
+            ->where('kind', 'video_poster');
+    }
+
     public function files()
     {
-        return $this->hasMany(\Dominservice\LaravelCms\Models\CategoryFile::class, 'category_uuid', 'uuid');
+        return $this->hasMany(CategoryFile::class, 'category_uuid', 'uuid');
     }
 
     public function avatarFile()
     {
-        return $this->hasOne(\Dominservice\LaravelCms\Models\CategoryFile::class, 'category_uuid', 'uuid')->where('kind', 'avatar');
+        return $this->hasOne(CategoryFile::class, 'category_uuid', 'uuid')->where('kind', 'avatar');
     }
 }

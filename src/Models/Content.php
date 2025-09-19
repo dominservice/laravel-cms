@@ -53,13 +53,6 @@ class Content extends Model
         'meta_description',
     ];
 
-    protected $appends = [
-        'avatar_path',
-        'video_path',
-        'video_avatar_path',
-        'video_poster_path',
-    ];
-
     /**
      * Get the table associated with the model.
      *
@@ -68,46 +61,6 @@ class Content extends Model
     public function getTable()
     {
         return config('cms.tables.contents');
-    }
-
-
-    public function getVideoPathAttribute()
-    {
-        if ($this->video && \Storage::disk(config('cms.disks.content_video'))->exists($this->video->name)) {
-            return \Storage::disk(config('cms.disks.content_video'))->url($this->video->name);
-        }
-
-        return null;
-    }
-
-    public function getVideoAvatarPathAttribute()
-    {
-        $record = $this->files()->where('kind', 'video_avatar')->first();
-        if (!$record || !is_array($record->names)) {
-            return null;
-        }
-        $display = config('cms.files.content.types.video_avatar.display', 'hd');
-        $name = $record->names[$display] ?? (is_array($record->names) ? reset($record->names) : null);
-        if (!$name) {
-            return null;
-        }
-        $diskKey = config('cms.disks.content_video');
-        return \Storage::disk($diskKey)->exists($name) ? \Storage::disk($diskKey)->url($name) : null;
-    }
-
-    public function getVideoPosterPathAttribute()
-    {
-        $record = $this->files()->where('kind', 'video_poster')->first();
-        if (!$record || !is_array($record->names)) {
-            return null;
-        }
-        $display = config('cms.files.content.types.video_poster.display', 'large');
-        $name = $record->names[$display] ?? (is_array($record->names) ? reset($record->names) : null);
-        if (!$name) {
-            return null;
-        }
-        $diskKey = config('cms.disks.content');
-        return \Storage::disk($diskKey)->exists($name) ? \Storage::disk($diskKey)->url($name) : null;
     }
 
     /**
@@ -145,7 +98,7 @@ class Content extends Model
 
     public function categories()
     {
-        return $this->belongsToMany(\Dominservice\LaravelCms\Models\Category::class
+        return $this->belongsToMany(Category::class
             , config('cms.tables.content_categories')
             , 'content_uuid'
             , 'category_uuid'
@@ -154,22 +107,30 @@ class Content extends Model
 
     public function rootCategory()
     {
-        return $this->belongsTo(\Dominservice\LaravelCms\Models\ContentCategoryRoot::class, 'uuid', 'content_uuid')
+        return $this->belongsTo(ContentCategoryRoot::class, 'uuid', 'content_uuid')
             ->where('is_root', 1);
     }
 
     public function video()
     {
-        return $this->belongsTo(\Dominservice\LaravelCms\Models\ContentVideo::class, 'uuid', 'content_uuid');
+        return $this->belongsTo(ContentFile::class, 'uuid', 'content_uuid')
+            ->where('kind', 'video_avatar');
+    }
+
+    public function videoPoster()
+    {
+        return $this->belongsTo(ContentFile::class, 'uuid', 'content_uuid')
+            ->where('kind', 'video_poster');
     }
 
     public function files()
     {
-        return $this->hasMany(\Dominservice\LaravelCms\Models\ContentFile::class, 'content_uuid', 'uuid');
+        return $this->hasMany(ContentFile::class, 'content_uuid', 'uuid');
     }
 
     public function avatarFile()
     {
-        return $this->hasOne(\Dominservice\LaravelCms\Models\ContentFile::class, 'content_uuid', 'uuid')->where('kind', 'avatar');
+        return $this->hasOne(ContentFile::class, 'content_uuid', 'uuid')
+            ->where('kind', 'avatar');
     }
 }
