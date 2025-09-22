@@ -88,7 +88,7 @@ class Category extends Model
         return $this->belongsToMany(Content::class
             , config('cms.tables.content_categories')
             , 'category_uuid'
-            , 'version_uuid'
+            , 'content_uuid'
         );
     }
 
