@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string $type
  * @property bool $status
  * @property bool $is_nofollow
+ * @property string|null $external_url
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -37,10 +38,15 @@ class Content extends Model
 
     protected string $fileConfigKey = 'content';
 
+    protected $casts = [
+        'external_url' => 'string',
+    ];
+
     protected $fillable = [
         'type',
         'status',
         'is_nofollow',
+        'external_url',
     ];
 
     public $translatedAttributes = [
@@ -83,6 +89,26 @@ class Content extends Model
         return Attribute::make(
             get: fn ($value) => \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format')),
             set: fn ($value) => $value,
+        );
+    }
+
+    /**
+     * Normalize external_url: trim spaces; store empty as null
+     */
+    public function externalUrl(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                $value = is_string($value) ? trim($value) : $value;
+                return $value === '' ? null : $value;
+            },
+            set: function ($value) {
+                if (is_string($value)) {
+                    $value = trim($value);
+                    return $value === '' ? null : $value;
+                }
+                return $value ?: null;
+            }
         );
     }
 

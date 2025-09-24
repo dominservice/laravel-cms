@@ -13,7 +13,7 @@ return new class extends Migration
     {
         if (Schema::hasTable(config('cms.tables.contents')) ) {
             Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
-                $table->boolean('is_nofollow')->default(0);
+                $table->string('external_url')->nullable()->after('type');
             });
         }
     }
@@ -25,7 +25,7 @@ return new class extends Migration
     {
         if (Schema::hasTable(config('cms.tables.contents')) ) {
             Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
-                $table->dropColumn('is_nofollow');
+                $table->dropColumn('external_url');
             });
         }
     }
