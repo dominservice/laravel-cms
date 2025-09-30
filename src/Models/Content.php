@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * @property string $uuid
+ * @property string $parent_uuid
  * @property string $type
  * @property bool $status
  * @property bool $is_nofollow
@@ -43,6 +44,7 @@ class Content extends Model
     ];
 
     protected $fillable = [
+        'parent_uuid',
         'type',
         'status',
         'is_nofollow',
@@ -121,6 +123,16 @@ class Content extends Model
         $this->whereHas('categories', function ($q) use ($categories) {
             $q->whereIn(config('cms.tables.categories') .'.uuid', $categories)->orWhereIn('slug', $categories);
         });
+    }
+
+    public function parent(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_uuid', 'uuid');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(self::class, 'uuid', 'parent_uuid');
     }
 
     public function categories()
