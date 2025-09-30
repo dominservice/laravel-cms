@@ -276,11 +276,41 @@ trait DynamicAvatarAccessor
 
     protected function getFileConfigKey(): string
     {
-        // Use model-defined property if present and string, otherwise fallback to 'content'
-        if (property_exists($this, 'fileConfigKey') && is_string($this->fileConfigKey) && $this->fileConfigKey !== '') {
-            return $this->fileConfigKey;
+        // Cache resolved key per instance to avoid repeated computation
+        if (property_exists($this, '__resolvedFileConfigKey') && is_string($this->__resolvedFileConfigKey ?? null) && $this->__resolvedFileConfigKey !== '') {
+            return $this->__resolvedFileConfigKey;
         }
-        return 'content';
+
+        // Base key from model or default
+        $baseKey = (property_exists($this, 'fileConfigKey') && is_string($this->fileConfigKey) && $this->fileConfigKey !== '')
+            ? $this->fileConfigKey
+            : 'content';
+
+        $resolved = $baseKey;
+
+        // Try to map using model's kind (or type as a fallback) if provided in config
+        $kind = null;
+        if (isset($this->kind) && is_string($this->kind) && $this->kind !== '') {
+            $kind = $this->kind;
+        } elseif (isset($this->type) && is_string($this->type) && $this->type !== '') {
+            // Some models use "type"; allow it as fallback to support broader usage
+            $kind = $this->type;
+        }
+
+        $map = (array) config('cms.file_config_key_map', []);
+        if ($kind !== null) {
+            // Prefer mapping scoped by base key, e.g. ['content' => ['test' => 'test_123']]
+            if (isset($map[$baseKey]) && is_array($map[$baseKey]) && isset($map[$baseKey][$kind]) && is_string($map[$baseKey][$kind]) && $map[$baseKey][$kind] !== '') {
+                $resolved = $map[$baseKey][$kind];
+            } elseif (isset($map[$kind]) && is_string($map[$kind]) && $map[$kind] !== '') {
+                // Or use a global flat mapping, e.g. ['test' => 'test_123']
+                $resolved = $map[$kind];
+            }
+        }
+
+        // Save back to dynamic cache property to reuse in the same request lifecycle
+        $this->__resolvedFileConfigKey = $resolved;
+        return $resolved;
     }
 
     /**

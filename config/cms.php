@@ -24,6 +24,20 @@ return [
         'content_video' => 'public',
     ],
 
+    // Optional: map model kind/type to a different file config key (and disk)
+    // Examples:
+    // 'file_config_key_map' => [
+    //     // Global mapping by kind/type regardless of model
+    //     'test' => 'test_123',
+    //     // Or scoped mapping per base fileConfigKey (e.g., content/category)
+    //     'content' => [
+    //         'test' => 'test_123'
+    //     ],
+    // ],
+    'file_config_key_map' => [
+        // empty by default
+    ],
+
     // Backward-compat for legacy avatar naming (still used as fallback)
     'avatar' => [
         'extension' => 'webp',
