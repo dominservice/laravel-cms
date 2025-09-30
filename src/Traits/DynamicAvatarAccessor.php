@@ -82,10 +82,17 @@ trait DynamicAvatarAccessor
         }
 
         // Determine proper disk. For content videos prefer a dedicated disk.
+        $baseKey = (property_exists($this, 'fileConfigKey') && is_string($this->fileConfigKey) && $this->fileConfigKey !== '') ? $this->fileConfigKey : 'content';
         if ($configKey === 'content') {
             $diskKey = config('cms.disks.content_video') ?: config('cms.disks.content');
         } else {
             $diskKey = config("cms.disks.$configKey");
+            if (!$diskKey) {
+                // Fallback to base model disk (and for content base use content_video when available)
+                $diskKey = $baseKey === 'content'
+                    ? (config('cms.disks.content_video') ?: config('cms.disks.content'))
+                    : config("cms.disks.$baseKey");
+            }
         }
         if (!$diskKey) {
             $this->_mediaUrlCache[$cacheKey] = null;
@@ -244,7 +251,8 @@ trait DynamicAvatarAccessor
         // Resolve file by logical kind using optional mapping (e.g., avatar -> testowy)
         $file = $this->resolveFileByLogicalKind('avatar');
         $configKey = $this->getFileConfigKey($file->kind ?? 'avatar');
-        $diskKey = config("cms.disks." . $configKey);
+        $baseKey = (property_exists($this, 'fileConfigKey') && is_string($this->fileConfigKey) && $this->fileConfigKey !== '') ? $this->fileConfigKey : 'content';
+        $diskKey = config("cms.disks." . $configKey) ?: config("cms.disks." . $baseKey);
         if (!$diskKey) {
             return null;
         }
@@ -470,10 +478,16 @@ trait DynamicAvatarAccessor
         $file = $this->resolveFileByLogicalKind('video_avatar');
         $configKey = $this->getFileConfigKey($file->kind ?? 'video_avatar');
         // Determine proper disk. For content videos prefer a dedicated disk.
+        $baseKey = (property_exists($this, 'fileConfigKey') && is_string($this->fileConfigKey) && $this->fileConfigKey !== '') ? $this->fileConfigKey : 'content';
         if ($configKey === 'content') {
             $diskKey = config('cms.disks.content_video') ?: config('cms.disks.content');
         } else {
             $diskKey = config("cms.disks.$configKey");
+            if (!$diskKey) {
+                $diskKey = $baseKey === 'content'
+                    ? (config('cms.disks.content_video') ?: config('cms.disks.content'))
+                    : config("cms.disks.$baseKey");
+            }
         }
         if (!$diskKey) {
             return null;
@@ -501,7 +515,8 @@ trait DynamicAvatarAccessor
     {
         $file = $this->resolveFileByLogicalKind('video_poster');
         $configKey = $this->getFileConfigKey($file->kind ?? 'video_poster');
-        $diskKey = config("cms.disks.$configKey"); // posters are images, use image disk
+        $baseKey = (property_exists($this, 'fileConfigKey') && is_string($this->fileConfigKey) && $this->fileConfigKey !== '') ? $this->fileConfigKey : 'content';
+        $diskKey = config("cms.disks.$configKey") ?: config("cms.disks.$baseKey"); // posters are images, use image disk
         if (!$diskKey) {
             return null;
         }
