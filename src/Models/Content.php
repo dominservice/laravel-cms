@@ -125,14 +125,14 @@ class Content extends Model
         });
     }
 
-    public function children(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function parent(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(self::class, 'parent_uuid', 'uuid');
+        return $this->belongsTo(self::class, 'uuid', 'parent_uuid');
     }
 
-    public function parent()
+    public function children()
     {
-        return $this->hasMany(self::class, 'uuid', 'parent_uuid');
+        return $this->hasMany(self::class, 'parent_uuid', 'uuid');
     }
 
     public function categories()
