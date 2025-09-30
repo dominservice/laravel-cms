@@ -64,7 +64,10 @@ trait DynamicAvatarAccessor
      */
     public function getVideoPathAttribute(): ?string
     {
-        $configKey = $this->getFileConfigKey(); // 'content' or 'category'
+        // Resolve the actual file by logical kind
+        $file = $this->resolveFileByLogicalKind('video_avatar');
+        $resolvedKind = $file->kind ?? 'video_avatar';
+        $configKey = $this->getFileConfigKey($resolvedKind); // mapped by actual file kind when possible
         $display = (string) (config("cms.files.$configKey.types.video_avatar.display") ?: 'hd');
         $cacheKey = 'video:' . $display;
         if (array_key_exists($cacheKey, $this->_mediaUrlCache)) {
@@ -82,14 +85,7 @@ trait DynamicAvatarAccessor
             return null;
         }
 
-        // Try to locate the video file record.
-        $file = null;
-        if (method_exists($this, 'files')) {
-            $file = $this->files()->where('kind', 'video_avatar')->first();
-        } elseif (method_exists($this, 'video')) {
-            $file = $this->video()->first();
-        }
-
+        // Use the resolved file if available
         if ($file && is_array($file->names)) {
             $name = $file->names[$display] ?? null;
             if (is_string($name) && $name !== '') {
@@ -142,7 +138,9 @@ trait DynamicAvatarAccessor
         if ($url !== null) {
             return $this->_mediaUrlCache[$cacheKey] = $url;
         }
-        $diskKey = config("cms.disks." . $this->getFileConfigKey());
+        $file = $this->resolveFileByLogicalKind('video_poster');
+        $configKey = $this->getFileConfigKey($file->kind ?? 'video_poster');
+        $diskKey = config("cms.disks." . $configKey);
         if (is_string($diskKey) && $diskKey !== '') {
             $legacy = $this->resolveLegacyPosterUrl($diskKey);
             if ($legacy !== null) {
@@ -211,7 +209,9 @@ trait DynamicAvatarAccessor
 
     protected function getConfiguredAvatarDisplaySize(): string
     {
-        $key = "cms.files." . $this->getFileConfigKey() . ".types.avatar.display";
+        $file = $this->resolveFileByLogicalKind('avatar');
+        $configKey = $this->getFileConfigKey($file->kind ?? 'avatar');
+        $key = "cms.files." . $configKey . ".types.avatar.display";
         $size = config($key);
         if (is_string($size) && $size !== '') {
             return $size;
@@ -222,7 +222,9 @@ trait DynamicAvatarAccessor
 
     protected function getConfiguredPosterDisplaySize(): string
     {
-        $key = "cms.files." . $this->getFileConfigKey() . ".types.video_poster.display";
+        $file = $this->resolveFileByLogicalKind('video_poster');
+        $configKey = $this->getFileConfigKey($file->kind ?? 'video_poster');
+        $key = "cms.files." . $configKey . ".types.video_poster.display";
         $size = config($key);
         if (is_string($size) && $size !== '') {
             return $size;
@@ -232,9 +234,10 @@ trait DynamicAvatarAccessor
 
     protected function resolveAvatarUrlForSize(string $size, ?string $profile = null): ?string
     {
-        // Try to get the avatar file record
-        $file = method_exists($this, 'avatarFile') ? $this->avatarFile()->first() : (method_exists($this, 'files') ? $this->files()->where('kind', 'avatar')->first() : null);
-        $diskKey = config("cms.disks." . $this->getFileConfigKey());
+        // Resolve file by logical kind using optional mapping (e.g., avatar -> testowy)
+        $file = $this->resolveFileByLogicalKind('avatar');
+        $configKey = $this->getFileConfigKey($file->kind ?? 'avatar');
+        $diskKey = config("cms.disks." . $configKey);
         if (!$diskKey) {
             return null;
         }
@@ -274,11 +277,15 @@ trait DynamicAvatarAccessor
         return $this->resolveLegacyAvatarUrl($diskKey);
     }
 
-    protected function getFileConfigKey(): string
+    protected function getFileConfigKey(?string $forKind = null): string
     {
-        // Cache resolved key per instance to avoid repeated computation
-        if (property_exists($this, '__resolvedFileConfigKey') && is_string($this->__resolvedFileConfigKey ?? null) && $this->__resolvedFileConfigKey !== '') {
-            return $this->__resolvedFileConfigKey;
+        // Per-kind cache to avoid recomputation; use null key for default context
+        if (!property_exists($this, '__resolvedFileConfigKeyMap')) {
+            $this->__resolvedFileConfigKeyMap = [];
+        }
+        $cacheKey = $forKind ?? '__default__';
+        if (isset($this->__resolvedFileConfigKeyMap[$cacheKey]) && is_string($this->__resolvedFileConfigKeyMap[$cacheKey]) && $this->__resolvedFileConfigKeyMap[$cacheKey] !== '') {
+            return $this->__resolvedFileConfigKeyMap[$cacheKey];
         }
 
         // Base key from model or default
@@ -288,28 +295,29 @@ trait DynamicAvatarAccessor
 
         $resolved = $baseKey;
 
-        // Try to map using model's kind (or type as a fallback) if provided in config
+        // Determine mapping key priority:
+        // 1) Provided file kind (from cms_*_files.kind)
+        // 2) Model's own type (backward compatibility)
         $kind = null;
-        if (isset($this->kind) && is_string($this->kind) && $this->kind !== '') {
-            $kind = $this->kind;
+        if (is_string($forKind) && $forKind !== '') {
+            $kind = $forKind;
         } elseif (isset($this->type) && is_string($this->type) && $this->type !== '') {
-            // Some models use "type"; allow it as fallback to support broader usage
             $kind = $this->type;
         }
 
         $map = (array) config('cms.file_config_key_map', []);
         if ($kind !== null) {
-            // Prefer mapping scoped by base key, e.g. ['content' => ['test' => 'test_123']]
+            // Prefer mapping scoped by base key, e.g. ['content' => ['video_avatar' => 'content_video']]
             if (isset($map[$baseKey]) && is_array($map[$baseKey]) && isset($map[$baseKey][$kind]) && is_string($map[$baseKey][$kind]) && $map[$baseKey][$kind] !== '') {
                 $resolved = $map[$baseKey][$kind];
             } elseif (isset($map[$kind]) && is_string($map[$kind]) && $map[$kind] !== '') {
-                // Or use a global flat mapping, e.g. ['test' => 'test_123']
+                // Or use a global flat mapping, e.g. ['avatar' => 'content_images'] or ['test' => 'test_123']
                 $resolved = $map[$kind];
             }
         }
 
-        // Save back to dynamic cache property to reuse in the same request lifecycle
-        $this->__resolvedFileConfigKey = $resolved;
+        // Cache and return
+        $this->__resolvedFileConfigKeyMap[$cacheKey] = $resolved;
         return $resolved;
     }
 
@@ -319,7 +327,7 @@ trait DynamicAvatarAccessor
     protected function resolveLegacyAvatarUrl(string $diskKey): ?string
     {
         // Only for images; videos are handled elsewhere and not affected.
-        $prefix = $this->getFileConfigKey(); // 'content' or 'category'
+        $prefix = $this->getFileConfigKey('avatar'); // 'content' or 'category' (or mapped by avatar kind)
         $uuid = $this->uuid ?? null;
         if (!$uuid || !is_string($uuid)) {
             return null;
@@ -369,11 +377,53 @@ trait DynamicAvatarAccessor
     }
 
     /**
+     * Resolve a file record by logical kind using optional config mapping.
+     * Config: cms.file_kind_map.<logicalKind> can be a string or array of kinds to try (in order).
+     * We always include the logical kind as a fallback if not listed.
+     */
+    protected function resolveFileByLogicalKind(string $logicalKind)
+    {
+        if (!method_exists($this, 'files')) {
+            return null;
+        }
+        if (!property_exists($this, '__fileByLogicalKindCache')) {
+            $this->__fileByLogicalKindCache = [];
+        }
+        if (array_key_exists($logicalKind, $this->__fileByLogicalKindCache)) {
+            return $this->__fileByLogicalKindCache[$logicalKind];
+        }
+
+        $map = config('cms.file_kind_map.' . $logicalKind);
+        $kinds = [];
+        if (is_string($map) && $map !== '') {
+            $kinds[] = $map;
+        } elseif (is_array($map)) {
+            foreach ($map as $k) {
+                if (is_string($k) && $k !== '') {
+                    $kinds[] = $k;
+                }
+            }
+        }
+        if (!in_array($logicalKind, $kinds, true)) {
+            $kinds[] = $logicalKind;
+        }
+
+        $found = null;
+        foreach ($kinds as $k) {
+            $candidate = $this->files()->where('kind', $k)->first();
+            if ($candidate) { $found = $candidate; break; }
+        }
+        $this->__fileByLogicalKindCache[$logicalKind] = $found;
+        return $found;
+    }
+
+    /**
      * Resolve URL for a concrete video size key, e.g. 'mobile', 'sd', 'hd'.
      */
     protected function resolveVideoUrlForSize(string $size): ?string
     {
-        $configKey = $this->getFileConfigKey();
+        $file = $this->resolveFileByLogicalKind('video_avatar');
+        $configKey = $this->getFileConfigKey($file->kind ?? 'video_avatar');
         // Determine proper disk. For content videos prefer a dedicated disk.
         if ($configKey === 'content') {
             $diskKey = config('cms.disks.content_video') ?: config('cms.disks.content');
@@ -384,13 +434,6 @@ trait DynamicAvatarAccessor
             return null;
         }
 
-        // Locate the video file record
-        $file = null;
-        if (method_exists($this, 'files')) {
-            $file = $this->files()->where('kind', 'video_avatar')->first();
-        } elseif (method_exists($this, 'video')) {
-            $file = $this->video()->first();
-        }
         if (!$file || !is_array($file->names)) {
             return null;
         }
@@ -411,19 +454,13 @@ trait DynamicAvatarAccessor
      */
     protected function resolvePosterUrlForSize(string $size): ?string
     {
-        $configKey = $this->getFileConfigKey();
+        $file = $this->resolveFileByLogicalKind('video_poster');
+        $configKey = $this->getFileConfigKey($file->kind ?? 'video_poster');
         $diskKey = config("cms.disks.$configKey"); // posters are images, use image disk
         if (!$diskKey) {
             return null;
         }
 
-        // Locate the video poster file record
-        $file = null;
-        if (method_exists($this, 'files')) {
-            $file = $this->files()->where('kind', 'video_poster')->first();
-        } elseif (method_exists($this, 'videoPoster')) {
-            $file = $this->videoPoster()->first();
-        }
         if (!$file || !is_array($file->names)) {
             // Try legacy poster naming from v2
             return $this->resolveLegacyPosterUrl($diskKey);

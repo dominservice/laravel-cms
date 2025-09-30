@@ -24,17 +24,33 @@ return [
         'content_video' => 'public',
     ],
 
-    // Optional: map model kind/type to a different file config key (and disk)
+    // Optional: map file "kind" (from cms_*_files.kind) or model kind/type to a different
+    // file config key (and disk). Mapping priority: file.kind → model kind/type.
     // Examples:
     // 'file_config_key_map' => [
-    //     // Global mapping by kind/type regardless of model
-    //     'test' => 'test_123',
+    //     // Map by file kind globally (works for both content/category models)
+    //     'avatar' => 'content_images',
+    //     'video_avatar' => 'content_video',
+    //     'video_poster' => 'content_images',
     //     // Or scoped mapping per base fileConfigKey (e.g., content/category)
     //     'content' => [
-    //         'test' => 'test_123'
+    //         'test' => 'test_123',        // file.kind = 'test' → use config key 'test_123'
+    //         'avatar' => 'content_images'
     //     ],
     // ],
     'file_config_key_map' => [
+        // empty by default
+    ],
+
+    // Optional: map logical kind names used by accessors (avatar, video_avatar, video_poster, ...)
+    // to actual ContentFile/CategoryFile.kind values stored in DB. Order matters.
+    // Examples:
+    // 'file_kind_map' => [
+    //     'avatar' => ['testowy', 'avatar'],          // prefer files saved as kind 'testowy', fallback to 'avatar'
+    //     'video_avatar' => ['movie', 'video_avatar'],
+    //     'video_poster' => ['movie_poster', 'video_poster'],
+    // ],
+    'file_kind_map' => [
         // empty by default
     ],
 
