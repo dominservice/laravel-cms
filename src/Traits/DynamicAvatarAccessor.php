@@ -13,6 +13,13 @@ trait DynamicAvatarAccessor
     protected array $_mediaUrlCache = [];
 
     /**
+     * Caches for resolving files and config keys without triggering Eloquent magic getters.
+     * Declared explicitly to avoid "Indirect modification of overloaded property" errors.
+     */
+    protected array $__fileByLogicalKindCache = [];
+    protected array $__resolvedFileConfigKeyMap = [];
+
+    /**
      * The model using this trait should define a protected string $fileConfigKey
      * to determine which config branch and disk to use (e.g. 'content' or 'category').
      * If it's not defined in the model, we will gracefully fall back to 'content'.
@@ -261,15 +268,53 @@ trait DynamicAvatarAccessor
                     if (is_array($v)) { $bucket = $v; break; }
                 }
             }
-            $name = $bucket[$size] ?? null;
-        } else {
-            $name = $names[$size] ?? null;
-        }
+            $name = is_array($bucket) ? ($bucket[$size] ?? null) : null;
 
-        if (is_string($name) && $name !== '') {
-            $u = $this->urlWithVersion($diskKey, $name);
-            if ($u !== null) {
-                return $u;
+            // If the requested size is missing, try any available variant in the selected bucket
+            if ((!is_string($name) || $name === '') && is_array($bucket)) {
+                foreach ($bucket as $candidate) {
+                    if (is_string($candidate) && $candidate !== '') {
+                        $u = $this->urlWithVersion($diskKey, $candidate);
+                        if ($u !== null) {
+                            return $u;
+                        }
+                    }
+                }
+            }
+
+            // If still not found, try other profiles and their variants
+            foreach ($names as $prof => $profBucket) {
+                if (!is_array($profBucket)) { continue; }
+                if ($profile !== null && $prof === $profile) { continue; }
+                // exact size in other profile
+                if (isset($profBucket[$size]) && is_string($profBucket[$size]) && $profBucket[$size] !== '') {
+                    $u = $this->urlWithVersion($diskKey, $profBucket[$size]);
+                    if ($u !== null) { return $u; }
+                }
+                // any variant in other profile
+                foreach ($profBucket as $candidate) {
+                    if (is_string($candidate) && $candidate !== '') {
+                        $u = $this->urlWithVersion($diskKey, $candidate);
+                        if ($u !== null) { return $u; }
+                    }
+                }
+            }
+        } else {
+            // Flat structure: try requested size, then any available variant
+            $name = $names[$size] ?? null;
+            if (is_string($name) && $name !== '') {
+                $u = $this->urlWithVersion($diskKey, $name);
+                if ($u !== null) {
+                    return $u;
+                }
+            }
+            foreach ($names as $candidate) {
+                if (is_string($candidate) && $candidate !== '') {
+                    $u = $this->urlWithVersion($diskKey, $candidate);
+                    if ($u !== null) {
+                        return $u;
+                    }
+                }
             }
         }
 
