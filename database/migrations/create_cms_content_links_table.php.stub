@@ -7,10 +7,13 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('cms_content_links', function (Blueprint $table) {
-            // UUID-y, dostosuj jeśli masz inny PK
-            $table->uuid('from_uuid');
-            $table->uuid('to_uuid');
+        Schema::create(config('cms.tables.content_links'), function (Blueprint $table) {
+            $table->foreignUuid('from_uuid')
+                ->constrained(config('cms.tables.contents'), 'uuid')
+                ->cascadeOnDelete();
+            $table->foreignUuid('to_uuid')
+                ->constrained(config('cms.tables.contents'), 'uuid')
+                ->cascadeOnDelete();
 
             // Opcjonalna nazwa relacji/kontekstu (neutralna, np. "xref", "related", "featured_on", itd.)
             $table->string('relation')->nullable();
@@ -25,9 +28,6 @@ return new class extends Migration {
 
             $table->timestamps();
 
-            $table->foreign('from_uuid')->references('uuid')->on('contents')->cascadeOnDelete();
-            $table->foreign('to_uuid')->references('uuid')->on('contents')->cascadeOnDelete();
-
             // To zabezpiecza przed duplikatami w danym "relation", ale relacja może być null
             $table->unique(['from_uuid','to_uuid','relation']);
 
@@ -39,6 +39,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::dropIfExists('cms_content_links');
+        Schema::dropIfExists(config('cms.tables.content_links'));
     }
 };
