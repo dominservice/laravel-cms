@@ -278,8 +278,15 @@ trait DynamicAvatarAccessor
             }
             $name = is_array($bucket) ? ($bucket[$size] ?? null) : null;
 
-            // If the requested size is missing, try any available variant in the selected bucket
-            if ((!is_string($name) || $name === '') && is_array($bucket)) {
+            // Prefer exact requested size within the selected profile
+            if (is_array($bucket)) {
+                if (is_string($name) && $name !== '') {
+                    $u = $this->urlWithVersion($diskKey, $name);
+                    if ($u !== null) {
+                        return $u;
+                    }
+                }
+                // If exact size is missing or not resolvable, try any available variant in the selected bucket
                 foreach ($bucket as $candidate) {
                     if (is_string($candidate) && $candidate !== '') {
                         $u = $this->urlWithVersion($diskKey, $candidate);
