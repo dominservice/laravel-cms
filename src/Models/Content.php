@@ -35,7 +35,12 @@ use Illuminate\Support\Facades\Storage;
  */
 class Content extends Model
 {
-    use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes, \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor;
+    use HasUuidPrimary,
+        Translatable,
+        TranslatableLocales,
+        SoftDeletes,
+        \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor,
+        \Dominservice\LaravelCms\Traits\HasContentLinks;
 
     protected string $fileConfigKey = 'content';
 

@@ -16,6 +16,8 @@ return [
         // New dependent tables for file metadata
         'content_files' => 'cms_content_files',
         'category_files' => 'cms_category_files',
+
+        'content_links' => 'cms_content_links',
     ],
     
     'disks' => [

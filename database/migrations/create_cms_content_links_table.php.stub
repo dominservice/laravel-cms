@@ -1,0 +1,44 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('cms_content_links', function (Blueprint $table) {
+            // UUID-y, dostosuj jeśli masz inny PK
+            $table->uuid('from_uuid');
+            $table->uuid('to_uuid');
+
+            // Opcjonalna nazwa relacji/kontekstu (neutralna, np. "xref", "related", "featured_on", itd.)
+            $table->string('relation')->nullable();
+
+            // Kolejność i metadane (dowolne)
+            $table->unsignedInteger('position')->nullable();
+            $table->json('meta')->nullable();
+
+            // Okres obowiązywania linku (opcjonalnie)
+            $table->timestamp('visible_from')->nullable();
+            $table->timestamp('visible_to')->nullable();
+
+            $table->timestamps();
+
+            $table->foreign('from_uuid')->references('uuid')->on('contents')->cascadeOnDelete();
+            $table->foreign('to_uuid')->references('uuid')->on('contents')->cascadeOnDelete();
+
+            // To zabezpiecza przed duplikatami w danym "relation", ale relacja może być null
+            $table->unique(['from_uuid','to_uuid','relation']);
+
+            $table->index(['to_uuid','relation']);
+            $table->index(['from_uuid','relation']);
+            $table->index(['visible_from','visible_to']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('cms_content_links');
+    }
+};
