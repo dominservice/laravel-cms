@@ -3,569 +3,436 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/dominservice/laravel-cms.svg?style=flat-square)](https://packagist.org/packages/dominservice/laravel-cms)
 [![License](https://img.shields.io/packagist/l/dominservice/laravel-cms.svg?style=flat-square)](https://packagist.org/packages/dominservice/laravel-cms)
 
+A complete CMS package for Laravel (9–12) that provides:
+- Models and migrations for contents and categories (multilingual, nested categories tree),
+- File metadata (avatar and arbitrary file kinds),
+- Video avatars and posters (thumbnails extracted from video),
+- Flexible configuration of sizes, file-kind mapping and disks,
+- NEW: Content-to-Content Links with time visibility window and metadata,
+- NEW: Content metadata as an object (Content.meta JSON cast).
 
-Kompletny pakiet CMS dla aplikacji Laravel (9–12), dostarczający struktury danych dla treści i kategorii (wielojęzyczność, drzewo kategorii), metadanych plików (avatar/dodatkowe), prostego wideo oraz elastycznej konfiguracji rozmiarów plików. Dokument ten zawiera pełną instrukcję instalacji, konfiguracji i użycia wraz z przykładami.
+This README is a full rewrite in English, expanded with practical examples, a v2→v3 migration guide, and a step-by-step “Build your own CMS in Laravel (WordPress alternative)” walkthrough.
 
-Spis treści
-- Wymagania
-- Instalacja
-- Publikowanie konfiguracji i migracji
-- Uruchomienie migracji
-- Konfiguracja (config/cms.php)
-  - Tabele
-  - Dyski
-  - Avatar (dziedziczenie rozszerzenia)
-  - Pliki i rozmiary (content/category)
-- Modele i relacje
-  - Content
-  - Category
-  - ContentFile i CategoryFile (metadane plików)
-  - ContentVideo
-- Generowanie nazw plików
-- Dostęp do avataru i rozmiarów (trait DynamicAvatarAccessor)
-- Przykłady użycia
-  - Tworzenie kategorii (drzewo)
-  - Tworzenie treści i powiązanie z kategoriami
-  - Zapis plików (avatar i dodatkowe)
-  - Pobieranie adresów URL dla rozmiarów
-  - Wideo
-- Upload plików (helper Media)
-- Rozszerzanie: nowe typy plików i rozmiary
-- Uwagi dot. zgodności wstecznej
-- FAQ/Troubleshooting
-- Licencja
+Table of contents
+- Requirements
+- Installation
+- Publishing and migrations
+- Configuration (config/cms.php) — detailed with examples
+  - Tables
+  - Disks
+  - Image extension (avatar.extension)
+  - Files and sizes (files.*)
+  - Mappings: file_kind_map and file_config_key_map (ready-to-use scenarios)
+  - Date/time formats (date_format/time_format)
+- Models, traits and relations
+  - Content, Category
+  - ContentFile, CategoryFile (file metadata)
+  - ContentLink (NEW) and the HasContentLinks trait
+  - DynamicAvatarAccessor (images, videos, posters, dynamic accessors)
+  - Content metadata as an object (NEW)
+- Media Helper (image upload and processing)
+  - uploadModelImage
+  - uploadModelImageWithDefaults
+  - Notes about videos and posters
+- Usage examples (extended)
+  - Categories and contents (multilingual)
+  - Image upload and URL retrieval
+  - Video and poster
+  - Content ↔ Content links (NEW)
+  - Advanced mappings and multiple disks
+- Migration from v2 to v3 (checklist + snippet)
+- Build your own CMS (WordPress alternative) — step by step
+- Backward compatibility and fallbacks
+- FAQ / Troubleshooting
+- Contributing & Collaboration
+- Support this project (Ko‑fi)
+- License
 
-Wymagania
+Requirements
 - PHP >= 8.0
-- Laravel 9.x, 10.x, 11.x lub 12.x
-- astrotomic/laravel-translatable ^11.13 (wielojęzyczność)
-- kalnoy/nestedset ^6.0 (drzewo kategorii)
+- Laravel 9.x, 10.x, 11.x or 12.x
+- astrotomic/laravel-translatable ^11.13 (multilingual)
+- kalnoy/nestedset ^6.0 (nested tree)
+- PHP ext-gd (image processing)
 
-Instalacja
-1) Zainstaluj pakiet:
+Installation
+1) Install the package:
 ```bash
 composer require dominservice/laravel-cms
 ```
 
-2) Pakiet korzysta z autodetekcji ServiceProvidera, więc nie wymaga ręcznej rejestracji.
+2) The ServiceProvider is auto‑discovered (Laravel Package Discovery).
 
-Publikowanie konfiguracji i migracji
-- Konfiguracja:
+Publishing and migrations
+- Publish configuration:
 ```bash
 php artisan vendor:publish --provider="Dominservice\\LaravelCms\\ServiceProvider" --tag=config
 ```
 
-- Migracje (tabele CMS, powiązania, wideo, itp.):
+- Publish migrations (CMS tables, files metadata, content links, etc.):
 ```bash
 php artisan vendor:publish --provider="Dominservice\\LaravelCms\\ServiceProvider" --tag=migrations
 ```
 
-Uwaga: Po opublikowaniu migracji sprawdź folder database/migrations i w razie potrzeby zweryfikuj zgodność nazw plików migracji oraz ich kolejność. W zależności od wersji pakietu zestaw migracji może się różnić.
-
-Uruchomienie migracji
+- Run migrations:
 ```bash
 php artisan migrate
 ```
 
-Konfiguracja (config/cms.php)
-Poniżej podsumowanie najważniejszych opcji. Zawsze sprawdź aktualny plik konfiguracyjny po opublikowaniu.
-- date_format, time_format – formatowanie dat w accessorach modeli.
-- url_route – (opcjonalnie) bazowa część ścieżek URL używana przez aplikację.
-- tables – nazwy tabel, jakie pakiet wykorzystuje.
-- disks – nazwy dysków Laravel Storage dla poszczególnych typów zasobów (content, category, content_video). Upewnij się, że odpowiadają one zdefiniowanym dyskom w config/filesystems.php (np. public).
-- avatar.extension – rozszerzenie pliku obrazka wykorzystywane przy generowaniu nazw (domyślnie webp).
-- files.content/types oraz files.category/types – definicja typów (np. avatar, additional) i ich rozmiarów. Każdy rozmiar to klucz (np. original, large, small, thumb) oraz ustawienia wymiarów. Klucz display określa, który rozmiar ma być eksponowany jako avatar_path.
+Published migrations include (may vary by version):
+- create_cms_tables
+- add_columns_content_table
+- create_redirects_table
+- add_columns_category_content_table
+- add_columns_categoryies_table
+- create_video_table
+- add_column_content_table
+- create_files_tables (cms_content_files, cms_category_files)
+- add_external_url_to_contents_table
+- add_parent_to_content_table
+- create_cms_content_links_table (NEW — content ↔ content links)
+- add_meta_to_contents_table (NEW — adds a JSON meta column to contents)
 
-Przykładowy fragment (skrócony):
-```php
-files => [
-  'content' => [
-    'types' => [
-      'avatar' => [
-        'display' => 'large',
-        'sizes' => [
-          'original' => null,
-          'large' => ['w' => 1920, 'h' => 1080, 'fit' => 'contain'],
-          'small' => ['w' => 640, 'h' => 360, 'fit' => 'contain'],
-          'thumb' => ['w' => 160, 'h' => 160, 'fit' => 'cover'],
-        ],
-      ],
-      'additional' => [
-        'sizes' => [/* ... */],
+Configuration (config/cms.php) — highlights
+Check the published file to see the current values. Key options:
+
+- tables — table names used by the package, e.g., cms_contents, cms_categories, cms_content_files, cms_category_files, cms_content_links, etc.
+- disks — maps entity → Storage disk.
+  - Multiple disks example: define disks in config/filesystems.php (S3, CDN-backed public, etc.), then in cms.php:
+    ```php
+    'disks' => [
+      'content' => 'public',       // images for contents
+      'content_video' => 's3',     // videos go to S3
+      'category' => 'public',
+    ],
+    ```
+- avatar.extension — output image extension (webp by default).
+- files — definition of file types and their sizes per entity:
+  - files.content.types.avatar.display — which size is returned by $model->avatar_path,
+  - files.content.types.avatar.sizes — list of sizes to generate (except 'original' => null which is skipped on upload),
+  - video_avatar (video) and video_poster (image poster) for Content,
+  - analogous sections for Category,
+  - you can add your own kinds, e.g., 'gallery', 'document', 'banner'.
+- file_kind_map — map logical names (avatar, video_avatar, video_poster) to actual kind values stored in *_files.
+  - Scenario: migrating from custom kind names. You want the accessor to look for 'hero' first, then 'avatar':
+    ```php
+    'file_kind_map' => [
+      'avatar' => ['hero', 'avatar'],
+      'video_avatar' => ['movie', 'video_avatar'],
+      'video_poster' => ['movie_poster', 'video_poster'],
+    ],
+    ```
+- file_config_key_map — map a kind to the configuration key (and disk) used to build URLs.
+  - Globally or per-entity:
+    ```php
+    'file_config_key_map' => [
+      // global
+      'avatar' => 'content',
+      'video_poster' => 'content',
+      'video_avatar' => 'content_video',
+
+      // scoped by base key (content/category)
+      'content' => [
+        'test' => 'test_123', // when ContentFile.kind = 'test' → use config key 'test_123'
       ],
     ],
-  ],
-  'category' => [ /* analogicznie */ ],
-]
-```
+    ```
+- date_format, time_format — formats used by date accessors.
 
-Modele i relacje
-- Dominservice\LaravelCms\Models\Content
-  - Wielojęzyczny (Astrotomic Translatable) – atrybuty translatedAttributes: slug, name, sub_name, short_description, description, meta_*
-  - Relacje: categories() (MTM), rootCategory(), video(), files(), avatarFile()
-  - Appendowane atrybuty: avatar_path, small_avatar_path, thumb_avatar_path, video_path
+Models, traits and relations
+- Content (Dominservice\LaravelCms\Models\Content)
+  - Multilingual (Astrotomic Translatable), SoftDeletes.
+  - Relations: categories() (MTM), children()/parent(), files(), avatarFile(), video()/videoPoster() (aliases for files), rootCategory().
+  - Accessors: avatar_path, dynamic sizes {size}_avatar_path, video_path / {size}_video_avatar_path, video_poster_path / {size}_video_poster_path.
+  - external_url normalization (empty → null; trimmed on set/get).
+  - NEW: meta attribute cast to object (see next section).
 
-- Dominservice\LaravelCms\Models\Category
-  - Wielojęzyczny, drzewo (Nestedset)
-  - Relacje: contents() (MTM), files(), avatarFile()
-  - Appendowany atrybut: avatar_path
+- Category (Dominservice\LaravelCms\Models\Category)
+  - Multilingual, nested tree (Nestedset), SoftDeletes.
+  - Relations: contents() (MTM), files(), avatarFile().
 
-- Dominservice\LaravelCms\Models\ContentFile i CategoryFile
-  - Przechowują metadane plików w tabelach zależnych (cms_content_files, cms_category_files)
-  - Kolumny: uuid, *_uuid, kind ('avatar', 'additional', 'video_avatar', 'video_poster' itp.), type (rodzaj pliku: 'image' lub 'video'), names (JSON: mapa rozmiar => nazwa pliku), timestamps, softDeletes
+- ContentFile and CategoryFile
+  - Store file metadata: kind, type ('image'|'video'), names (JSON: size → filename). You can add custom kinds (e.g., 'gallery').
 
-- Dominservice\LaravelCms\Models\ContentVideo
-  - Prosta relacja z Content, pozwala przechowywać nazwę pliku wideo i udostępniać URL przez content->video_path
+- ContentLink (NEW) and HasContentLinks trait
+  - Table: cms_content_links; columns: from_uuid, to_uuid, relation (optional), position, meta (JSON), visible_from, visible_to.
+  - Trait API: links(), backlinks(), linksOf(), backlinksOf(), visibleLinks(), attachLink(), detachLink().
 
-Generowanie nazw plików
-Do generowania unikalnych nazw obrazów służy helper:
+DynamicAvatarAccessor (images, videos, posters)
+- Provides URLs according to configuration; adds cache-busting (?v=mtime); per-request cache.
+- Fallbacks: legacy naming for avatars/posters (content_{uuid}.webp, {uuid}.webp).
+- Mappings: file_kind_map and file_config_key_map let you rename kinds and move disks without changing model code.
+
+Content metadata as an object (NEW)
+- The Content model defines a JSON column meta casted to an object:
+  ```php
+  // Dominservice\\LaravelCms\\Models\\Content
+  protected $casts = [
+      'external_url' => 'string',
+      'meta' => 'object', // <— NEW: access as $content->meta (stdClass)
+  ];
+  ```
+- Migration: publish and run the migration that adds the meta column to the contents table:
+  ```bash
+  php artisan vendor:publish --provider="Dominservice\\LaravelCms\\ServiceProvider" --tag=migrations
+  php artisan migrate
+  ```
+  Look for a migration named similar to add_meta_to_contents_table.
+- Usage examples:
+  ```php
+  $content = Content::create(['type' => 'article', 'status' => 1]);
+
+  // Set as array (will be encoded to JSON and cast to object on read):
+  $content->meta = [
+      'reading_time' => 5,
+      'featured' => true,
+      'tags' => ['laravel','cms'],
+  ];
+  $content->save();
+
+  // Read as object
+  $meta = $content->meta;           // stdClass
+  $isFeatured = $meta->featured ?? false;
+  $tags = $meta->tags ?? [];
+
+  // Update one field safely
+  $meta = (array) $content->meta;   // cast to array if you need to mutate
+  $meta['reading_time'] = 6;
+  $content->meta = $meta;
+  $content->save();
+  ```
+
+Media Helper (image upload and processing)
+- uploadModelImage(Model $model, UploadedFile|string $source, string $kind = 'avatar', ?string $type = null, ?array $onlySizes = null, bool $replaceExisting = true)
+  - Generates sizes based on config (skips 'original' => null), writes to disk, updates *_files.
+  - When replaceExisting is true, removes previous variants.
+- uploadModelImageWithDefaults(Model $model, array $sourcesBySize, ...)
+  - 'default' plus per-size overrides (e.g., separate file only for 'thumb').
+- Note: responsive profiles (mobile/desktop) on upload are intentionally disabled — stick to configured sizes.
+- Videos: 'video_avatar' expects ready-made files (no transcoding). 'video_poster' is a regular image.
+
+Usage examples (extended)
+1) Categories and contents (create with translations)
 ```php
-Dominservice\LaravelCms\Helpers\Name::generateImageName(string $prefix = null): string
-```
-- Zwraca bazę nazwy w formacie: [opcjonalny-prefix]-ULID.webp (rozszerzenie pobierane z config('cms.avatar.extension')).
-- Nazwa NIE wykorzystuje pól z modelu – jest w pełni niezależna i stabilna (wymaganie zgodne z ostatnimi zmianami).
+use Dominservice\\LaravelCms\\Models\\Category;
+use Dominservice\\LaravelCms\\Models\\Content;
 
-Dostęp do avataru i rozmiarów (trait DynamicAvatarAccessor)
-Modele Content i Category używają traitu: Dominservice\LaravelCms\Traits\DynamicAvatarAccessor
-- avatar_path – zwraca URL rozmiaru określonego w konfiguracji w kluczu files.{content|category}.types.avatar.display (domyślnie large).
-- Dynamiczny dostęp do innych rozmiarów: {size}_avatar_path, np.: small_avatar_path, large_avatar_path, thumb_avatar_path. Zwracają URL lub null, jeśli brak.
-- Trait odczytuje nazwy plików z tabel zależnych (names[size]) i używa właściwego dysku z config('cms.disks.{content|category}').
-
-Przykłady użycia
-1) Tworzenie kategorii (drzewo)
-```php
-use Dominservice\LaravelCms\Models\Category;
-
-$cat = new Category(['type' => 'section', 'status' => 1]);
+$cat = Category::create(['type' => 'section', 'status' => 1]);
+$cat->translateOrNew('en')->name = 'News';
+$cat->translateOrNew('en')->slug = 'news';
 $cat->save();
-$cat->translateOrNew('pl')->name = 'Aktualności';
-$cat->translateOrNew('pl')->slug = 'aktualnosci';
-$cat->save();
-```
 
-2) Tworzenie treści i powiązanie z kategoriami
-```php
-use Dominservice\LaravelCms\Models\Content;
-
-$content = new Content(['type' => 'article', 'status' => 1]);
-$content->save();
-$content->translateOrNew('pl')->name = 'Pierwszy wpis';
-$content->translateOrNew('pl')->slug = 'pierwszy-wpis';
+$content = Content::create(['type' => 'article', 'status' => 1]);
+$content->translateOrNew('en')->name = 'First post';
+$content->translateOrNew('en')->slug = 'first-post';
 $content->save();
 
-// Powiązanie z kategorią
 $content->categories()->attach($cat->uuid);
 ```
 
-3) Zapis plików (avatar i dodatkowe)
-Założenia: korzystasz z dysku public i masz skonfigurowane linki storage:link.
-
-```php
-use Illuminate\Support\Facades\Storage;
-use Dominservice\LaravelCms\Models\ContentFile;
-use Dominservice\LaravelCms\Helpers\Name;
-
-// Przykład: zapis avataru w różnych rozmiarach (nazwy musisz wytworzyć i przetworzyć obrazy po swojej stronie)
-$names = [
-  'original' => Name::generateImageName('content'),
-  'large'    => Name::generateImageName('content-large'),
-  'small'    => Name::generateImageName('content-small'),
-  'thumb'    => Name::generateImageName('content-thumb'),
-];
-
-// Zapis fizycznych plików na dysku (przykładowo)
-$disk = config('cms.disks.content');
-Storage::disk($disk)->put($names['original'], $binaryOriginal);
-Storage::disk($disk)->put($names['large'], $binaryLarge);
-Storage::disk($disk)->put($names['small'], $binarySmall);
-Storage::disk($disk)->put($names['thumb'], $binaryThumb);
-
-// Zapis metadanych w tabeli zależnej
-ContentFile::create([
-  'content_uuid' => $content->uuid,
-  'kind' => 'avatar',
-  'type' => null,
-  'names' => $names,
-]);
-
-// Dodatkowe pliki (kind = 'additional') zapisujesz analogicznie
-```
-
-4) Pobieranie adresów URL dla rozmiarów
-```php
-// Zgodnie z konfiguracją display, to będzie np. URL do large
-$url = $content->avatar_path; 
-
-// Dostęp do konkretnych rozmiarów
-$small = $content->small_avatar_path; // lub null jeśli brak pliku
-$thumb = $content->thumb_avatar_path;
-
-// Dla kategorii działa analogicznie
-$catUrl = $cat->avatar_path;
-```
-
-5) Wideo
-Jeśli masz relację Content->video oraz plik wideo zapisany na dysku config('cms.disks.content_video'), a w tabeli wideo nazwa pliku jest przypisana – otrzymasz URL przez accessor:
-```php
-$videoUrl = $content->video_path; // null jeśli brak lub plik nie istnieje
-```
-
-Nowość: Avatar wideo w wielu rozmiarach + obraz pierwszej klatki (poster)
-- Konfiguracja w config/cms.php:
-  - files.content.types.video_avatar.sizes – lista dopuszczalnych wariantów wideo (np. hd, sd, mobile)
-  - files.content.types.video_avatar.display – który wariant ma być zwracany przez $content->video_avatar_path
-  - files.content.types.video_poster.sizes – rozmiary obrazka postera (przetwarzane jak obrazy)
-
-Upload wielu plików wideo (bez transkodowania) jako „video_avatar”:
+2) Image upload and URL retrieval (controller + view)
 ```php
 use Dominservice\\LaravelCms\\Helpers\\Media;
+use Illuminate\\Http\\Request;
 
-Media::uploadModelVideos($content, [
-    'hd'     => request()->file('video_hd'),     // UploadedFile lub ścieżka do pliku mp4/webm itp.
-    'sd'     => request()->file('video_sd'),
-    'mobile' => request()->file('video_mobile'),
-], 'video_avatar');
+public function store(Request $request) {
+    $content = Content::create(['type' => 'article', 'status' => 1]);
+    $content->translateOrNew('en')->fill([
+        'name' => (string) $request->string('name'),
+        'slug' => (string) $request->string('slug'),
+    ]);
+    $content->save();
 
-// Po zapisie
-$defaultVideo = $content->video_avatar_path; // URL do wariantu zdefiniowanego w display (domyślnie 'hd')
+    if ($request->hasFile('avatar')) {
+        Media::uploadModelImage($content, $request->file('avatar'), 'avatar');
+    }
+
+    return redirect()->route('content.show', $content->uuid);
+}
+```
+View (Blade):
+```blade
+<img src="{{ $content->avatar_path }}" alt="{{ $content->name }}" />
+<img src="{{ $content->thumb_avatar_path }}" alt="Thumbnail" />
 ```
 
-Upload obrazka pierwszej klatki (poster) – działa jak obrazy, generuje rozmiary zgodnie z config:
+3) Video and poster
 ```php
-Media::uploadModelImage($content, request()->file('video_poster'), 'video_poster');
+// Media::uploadModelVideos($content, ['hd' => $fileHd, 'sd' => $fileSd], 'video_avatar'); // conceptual example
+Media::uploadModelImage($content, request()->file('poster'), 'video_poster');
 
-$poster = $content->video_poster_path; // URL do rozmiaru wskazanego w display (domyślnie 'large')
+$video = $content->video_avatar_path;         // e.g., hd
+$poster = $content->video_poster_path;        // e.g., large
+$mobileVideo = $content->mobile_video_avatar_path; // dynamic accessor if 'mobile' exists in names
 ```
 
-Upload plików (helper Media)
-Pakiet zawiera wbudowany helper do przetwarzania i zapisu obrazów wraz z generowaniem wielu rozmiarów oraz automatyczną synchronizacją nazw w tabelach zależnych.
-
-Semantyka kolumny type w *_files
-- Od tej wersji kolumna type w tabelach cms_content_files i cms_category_files określa bazowy rodzaj pliku: 'image' albo 'video'.
-- Helper Media ustawia to automatycznie:
-  - uploadModelImage(...): type domyślnie = 'image'
-  - uploadModelVideos(...): type domyślnie = 'video'
-- Dla postera wideo (kind = 'video_poster') helper traktuje go jak obraz (type = 'image').
-
-Lista obrazów i wideo na modelu (trait)
-Modele Content i Category używają traitu DynamicAvatarAccessor, który udostępnia pomocnicze metody:
-- $model->imageFilesList() – kolekcja rekordów *_files, gdzie type = 'image'
-- $model->videoFilesList() – kolekcja rekordów *_files, gdzie type = 'video'
-
-Uwaga dot. postera
-- Poster wideo jest przechowywany jako osobny rekord w *_files o kind = 'video_poster' i type = 'image'.
-- Powiązanie „wideo ↔ poster” jest realizowane konwencją przez wspólnego właściciela (content_uuid/category_uuid) i rodzaje kind; na ten moment nie ma dodatkowego klucza relacyjnego między rekordami.*
-
-Sygnatura metody:
+4) Content ↔ Content links (NEW)
 ```php
-use Dominservice\LaravelCms\Helpers\Media;
+use Dominservice\\LaravelCms\\Models\\Content;
 
-Media::uploadModelImage(
-    \Illuminate\Database\Eloquent\Model $model,          // Content lub Category
-    \Illuminate\Http\UploadedFile|string $source,         // UploadedFile z requestu lub ścieżka do pliku na dysku
-    string $kind = 'avatar',                                // 'avatar' lub 'additional' (lub inny zdefiniowany w configu)
-    ?string $type = null,                                   // opcjonalny pod-typ, np. 'gallery'
-    ?array $onlySizes = null,                               // np. ['large','thumb'] – wygeneruje wybrane rozmiary
-    bool $replaceExisting = true                            // czy zastępować istniejący plik tego typu dla modelu
-): \Illuminate\Database\Eloquent\Model;                   // Zwraca ContentFile lub CategoryFile
+$a = Content::first();
+$b = Content::find($someUuid);
+
+$a->attachLink($b, [
+    'relation' => 'related',
+    'position' => 10,
+    'meta' => ['note' => 'editorial relation'],
+    'visible_from' => now(),
+]);
+
+$visible = $a->visibleLinks('related')->get();
+$incoming = $a->backlinks()->get();
 ```
 
-Opis parametrów i działania:
-- model – instancja Content lub Category. Na podstawie modelu wybierany jest odpowiedni dysk (config('cms.disks.content'| 'category')) i gałąź konfiguracji rozmiarów.
-- source – może być UploadedFile (np. request()->file('avatar')) albo pełna ścieżka do istniejącego pliku obrazu.
-- kind – typ pliku zgodny z konfiguracją w config('cms.files.{content|category}.types'). Domyślnie 'avatar'.
-- type – opcjonalny pod-typ, pozwala rozróżniać warianty w obrębie tego samego kind (np. 'gallery').
-- onlySizes – jeśli podasz listę kluczy rozmiarów, helper wygeneruje tylko te warianty; gdy null, wygeneruje wszystkie zdefiniowane w configu dla danego kind.
-- replaceExisting – jeśli true i istnieje już rekord dla (model, kind, type), helper usunie stare pliki z dysku i zaktualizuje rekord nazwami nowych plików.
-
-Użyta konfiguracja rozmiarów:
-- Definicje rozmiarów znajdują się w config('cms.files.content.types') i config('cms.files.category.types').
-- Każdy rozmiar ma klucz (np. original, large, small, thumb). Wartość null oznacza zachowanie oryginalnych wymiarów (z reenkodowaniem do rozszerzenia z config('cms.avatar.extension')).
-- Dla rozmiarów z parametrami możesz określić: w (szerokość), h (wysokość), fit ('contain' albo 'cover').
-
-Przykłady
-1) Upload avataru dla treści (z pliku z formularza)
+5) Advanced mappings and multiple disks
+- Serve avatars from an 'images' disk and videos from 's3':
 ```php
-use Dominservice\LaravelCms\Helpers\Media;
-use Dominservice\LaravelCms\Models\Content;
-
-$content = Content::first();
-$file = request()->file('avatar');
-
-// Wygeneruje wszystkie rozmiary zdefiniowane dla 'avatar' i zapisze do cms_content_files
-$record = Media::uploadModelImage($content, $file, 'avatar');
-
-// Po zapisie możesz uzyskać URL zgodnie z konfiguracją display
-$url = $content->avatar_path;            // np. 'large'
-$thumb = $content->thumb_avatar_path;    // dostęp dynamiczny
+// config/cms.php
+'disks' => [
+  'content' => 'images',
+  'content_video' => 's3',
+],
+'file_config_key_map' => [
+  'video_avatar' => 'content_video',
+  'video_poster' => 'content',
+],
+```
+- Rename DB kinds without touching code (configuration only):
+```php
+'file_kind_map' => [
+  'avatar' => ['hero', 'avatar'],
+],
 ```
 
-2) Upload tylko wybranych rozmiarów (np. large i thumb)
+Migration from v2 to v3 (checklist + snippet)
+Goal: move from v2 to v3 while keeping URLs and data intact.
+
+Checklist:
+1) Update the package to v3 and publish new config and migrations:
+   ```bash
+   composer require dominservice/laravel-cms:^3
+   php artisan vendor:publish --provider="Dominservice\\LaravelCms\\ServiceProvider" --tag=config
+   php artisan vendor:publish --provider="Dominservice\\LaravelCms\\ServiceProvider" --tag=migrations
+   php artisan migrate
+   ```
+2) Configure disks in config/cms.php (especially content_video if video should live elsewhere).
+3) Set file_kind_map if v2 used custom kind values in DB/files:
+   ```php
+   'file_kind_map' => [
+     'avatar' => ['avatar'],
+     'video_avatar' => ['video_avatar'],
+     'video_poster' => ['video_poster'],
+   ],
+   ```
+4) Set file_config_key_map so that videos are served from another disk if needed:
+   ```php
+   'file_config_key_map' => [
+     'video_avatar' => 'content_video',
+     'video_poster' => 'content',
+   ],
+   ```
+5) File metadata (cms_content_files, cms_category_files):
+   - v3 prefers metadata (names JSON). If you only have legacy files (e.g., content_{uuid}.webp), the accessor still finds them, but we recommend migrating to metadata.
+
+Migration helper snippet (one‑off console example) which reads a legacy file as 'large' and saves it into *_files without removing the original:
 ```php
-$record = Media::uploadModelImage($content, $file, 'avatar', null, ['large','thumb']);
+use Dominservice\\LaravelCms\\Models\\Content;
+use Dominservice\\LaravelCms\\Models\\ContentFile;
+use Illuminate\\Support\\Facades\\Storage;
+
+Artisan::command('cms:migrate-avatars-legacy', function () {
+    $diskKey = config('cms.disks.content');
+    $ext = ltrim((string)config('cms.avatar.extension', 'webp'), '.');
+
+    Content::query()->chunk(200, function ($chunk) use ($diskKey, $ext) {
+        foreach ($chunk as $c) {
+            $uuid = $c->uuid;
+            $candidates = ["content_{$uuid}.{$ext}", "content{$uuid}.{$ext}", "{$uuid}.{$ext}"];
+            foreach ($candidates as $name) {
+                if (Storage::disk($diskKey)->exists($name)) {
+                    ContentFile::firstOrCreate(
+                        ['content_uuid' => $uuid, 'kind' => 'avatar'],
+                        ['type' => 'image', 'names' => ['large' => $name]]
+                    );
+                    break;
+                }
+            }
+        }
+    });
+    $this->info('Legacy avatars backfilled into metadata.');
+});
 ```
+6) If v2 stored video as a single file (video_{uuid}.mp4), in v3 you can:
+   - leave it as a fallback (the accessor may detect it in some scenarios),
+   - or create ContentFile(kind='video_avatar', type='video', names=['hd' => 'video_{uuid}.mp4']).
+7) Dynamic properties in v3: you can access {size}_avatar_path, {size}_video_avatar_path, {size}_video_poster_path — update views if you want specific sizes.
 
-3) Upload pliku dla kategorii z pod-typem (gallery), źródło jako ścieżka z dysku
+Build your own CMS (WordPress alternative) — step by step
+Below is a minimal publishing flow you can grow into a full CMS.
+
+1) Routing (public + admin)
+- Public (e.g., routes/web.php):
 ```php
-use Dominservice\LaravelCms\Models\Category;
-
-$category = Category::first();
-$path = storage_path('app/tmp/example.jpg');
-
-$record = Media::uploadModelImage($category, $path, 'additional', 'gallery');
+use App\\Http\\Controllers\\ContentController;
+Route::get('/{slug}', [ContentController::class, 'show'])->name('content.show');
 ```
+- Admin (e.g., routes/admin.php): CRUD for contents and categories (Filament/Nova/Voyager work well since the models are standard Eloquent).
 
-4) Zachowanie istniejących plików (bez usuwania i podmiany)
+2) Content controller (public)
 ```php
-// replaceExisting = false – helper doda/ustawi rekord tylko jeśli nie istnieje; istniejące pliki pozostaną nienaruszone
-$record = Media::uploadModelImage($content, $file, 'avatar', null, null, false);
-```
+namespace App\\Http\\Controllers;
+use Dominservice\\LaravelCms\\Models\\Content;
 
-Dostęp do URL po uploadzie
-- Dla avataru: $model->avatar_path zwróci URL rozmiaru wskazanego w files.{entity}.types.avatar.display.
-- Inne rozmiary avataru dostępne dynamicznie: $model->small_avatar_path, $model->large_avatar_path, $model->thumb_avatar_path.
-- Dla innych kind niż 'avatar' możesz pobierać nazwy z rekordu w *_files (pole names) i budować URL przez Storage::disk(config('cms.disks.{entity}'))->url($name).
-
-Brak podziału mobile/desktop przy uploadzie (ważna zmiana)
-Od tej wersji upload plików obrazów i wideo nie przewiduje żadnego podziału na profile mobile/desktop. Dozwolone są wyłącznie formaty/rozmiary zadeklarowane w konfiguracji (config('cms.files.{content|category}.types.{kind}.sizes')). Metoda Media::uploadModelResponsiveImages została wyłączona i rzuca wyjątek InvalidArgumentException.
-
-Jak teraz uploadować obrazy:
-- Używaj Media::uploadModelImage($model, $source, $kind, ...). Helper wygeneruje wyłącznie rozmiary zdefiniowane w konfiguracji (z pominięciem ewentualnego klucza 'original' = null).
-- Opcjonalnie możesz użyć Media::uploadModelImageWithDefaults(...) aby dostarczyć różne źródła dla wybranych rozmiarów (nadal bez profili mobile/desktop).
-
-Wsteczna kompatybilność odczytu:
-- Trait DynamicAvatarAccessor nadal potrafi odczytać wcześniej zapisane struktury names z podziałem na mobile/desktop, więc istniejące dane pozostają dostępne. Nowe uploady nie będą jednak tworzyć takich struktur.
-
-Uwaga: Jeśli w konfiguracji posiadasz 'original' => null – helper zignoruje ten wpis, nie zapisując oryginału. Zalecamy utrzymywanie jedynie potrzebnych rozmiarów z parametrami.
-
-Upload z jednym plikiem domyślnym i nadpisaniami dla wybranych rozmiarów (default + overrides)
-Czasami potrzebujesz przypisać inne źródło tylko do części rozmiarów (np. osobny obraz dla thumb), a dla reszty użyć jednego, wspólnego pliku. Służy do tego metoda:
-
-```php
-use Dominservice\LaravelCms\Helpers\Media;
-
-Media::uploadModelImageWithDefaults(
-    $model, // Content lub Category
-    [
-        'default' => request()->file('img_default'), // bazowy dla wszystkich rozmiarów
-        'thumb'   => request()->file('img_thumb'),   // opcjonalne nadpisanie tylko dla 'thumb'
-        // 'small' => request()->file('img_small'),  // inne opcjonalne nadpisania
-    ],
-    'avatar',          // kind
-    null,              // type (opcjonalnie)
-    null,              // onlySizes (opcjonalnie)
-    true               // replaceExisting
-);
-```
-
-Zasady działania:
-- Dla każdego rozmiaru zdefiniowanego w configu (poza 'original') helper wybiera: źródło z klucza o nazwie rozmiaru (jeśli podane), w przeciwnym wypadku źródło z klucza 'default'.
-- Jeśli dla danego rozmiaru nie ma ani nadpisania, ani 'default' – rozmiar jest pomijany.
-- Co najmniej jeden wariant musi zostać wygenerowany, w przeciwnym razie zostanie rzucony InvalidArgumentException.
-- Wpisy 'original' (null) w konfiguracji są ignorowane – nie zapisujemy oryginału.
-
-Przykład minimalny (domyślny dla wszystkich poza thumb):
-```php
-Media::uploadModelImageWithDefaults($content, [
-  'default' => request()->file('img_all'),
-  'thumb'   => request()->file('img_only_thumb'),
-], 'avatar');
-```
-
-Po zapisie:
-- $model->avatar_path zwróci URL rozmiaru zdefiniowanego w display (np. 'large').
-- Dostęp do konkretnych rozmiarów: $model->{size}_avatar_path (np. $model->thumb_avatar_path, $model->small_avatar_path).
-
-Walidacja i obsługa błędów
-- W razie błędnej konfiguracji lub nieudanego przetwarzania rzucony zostanie InvalidArgumentException. Możesz zabezpieczyć wywołanie:
-```php
-try {
-    Media::uploadModelImage($content, $file, 'avatar');
-} catch (\InvalidArgumentException $e) {
-    // obsłuż błąd (np. komunikat dla użytkownika)
+class ContentController extends Controller
+{
+    public function show(string $slug)
+    {
+        $content = Content::whereTranslation('slug', $slug)->firstOrFail();
+        $links = $content->visibleLinks()->get();
+        return view('content.show', compact('content','links'));
+    }
 }
 ```
 
-Wymagania środowiskowe
-- Upewnij się, że skonfigurowane są właściwe dyski w config('cms.disks.*') oraz istnieje storage:link dla publicznego serwowania plików:
-```bash
-php artisan storage:link
-```
+3) Admin form (create post)
+- Validate translation fields (name, slug), status, type, and 'avatar' image.
+- After save: `Media::uploadModelImage($content, $request->file('avatar'), 'avatar');`
 
-- Rozszerzenie obrazów ustawiane jest przez config('cms.avatar.extension'), domyślnie webp.
+4) Categories and navigation
+- Build a tree with Category and the MTM relation. For menus, fetch categories of type 'section' and render according to the nested set.
 
-Czyszczenie i podmiana
-- Gdy replaceExisting = true, helper automatycznie usuwa poprzednie pliki z dysku przypisane do danego rekordu (model, kind, type) i zapisuje nowe nazwy w kolumnie names.
+5) SEO and internal linking
+- Use ContentLink for "related posts", "see also", "featured" blocks.
+- Set meta_title/meta_description in translations.
 
-Rozszerzanie: nowe typy plików i rozmiary
-- W pliku config/cms.php dodaj własny typ w sekcji files.{entity}.types, np. gallery, document.
-- Zdefiniuj rozmiary (klucze i parametry). Następnie w logice zapisu generuj nazwy i uzupełniaj je w kolumnie names (JSON) w odpowiadających rekordach *_files.
-- Dzięki temu możesz tworzyć dodatkowe accessorowe ścieżki dynamiczne np. for each size w avatarze; dla innych typów możesz dodać własne accessory lub korzystać bezpośrednio z pól w bazie.
+6) Media and performance
+- Keep large videos on S3 (file_config_key_map → 'content_video').
+- Serve images from a CDN (configure the URL for the 'public' or a dedicated 'images' disk).
 
-Jak pobierać ścieżki/URL z poziomu modeli Content i Category
-- Avatar (obraz):
-  - $model->avatar_path — URL rozmiaru wskazanego w config('cms.files.{content|category}.types.avatar.display').
-  - Dostęp do konkretnych rozmiarów: $model->{size}_avatar_path, np. $model->thumb_avatar_path, $model->small_avatar_path.
-- Inne pliki obrazów (np. 'additional'):
-  - $file = $model->files()->where('kind', 'additional')->first();
-  - if ($file) { foreach ($file->names as $size => $name) { $url = Storage::disk(config('cms.disks.' . ($model instanceof \Dominservice\LaravelCms\Models\Category ? 'category' : 'content')))->url($name); }}
-- Wideo:
-  - Avatar wideo (domyślny wariant wg display): $model->video_avatar_path — zwraca URL wariantu zdefiniowanego w display (domyślnie 'hd').
-  - Avatar wideo w konkretnym rozmiarze (np. mobile/sd/hd): $model->{size}_video_avatar_path, np. $model->mobile_video_avatar_path. Zwraca URL lub null jeśli brak pliku dla danego klucza rozmiaru.
-  - Poster wideo: $model->video_poster_path — URL jak dla obrazów. W trybie kompatybilności wstecznej (gdy brak rekordu kind = 'video_poster') accessor sprawdzi również legacy nazwy obrazów z v2 (np. content_{uuid}.webp/category_{uuid}.webp/{uuid}.webp) na odpowiednim dysku i zwróci ich URL, jeśli istnieją.
-- Listy:
-  - $model->imageFilesList() — kolekcja rekordów *_files, gdzie type = 'image'.
-  - $model->videoFilesList() — kolekcja rekordów *_files, gdzie type = 'video'.
+7) Migrating from WordPress (conceptual)
+- Export posts/pages to CSV/JSON.
+- Import into Content (type = 'post'|'page').
+- Convert media: upload to disk and create entries in *_files (avatar/gallery/banner).
+- Use redirects (cms_redirects) to preserve legacy URLs.
 
-Automatyczne dołączanie starszych plików do *_files podczas aktualizacji
-- Jeśli na dysku znajdują się pliki ze starszej wersji pakietu (v2) bez odpowiedniego wpisu w *_files, to przy najbliższym zapisie/aktualizacji pliku przez helper Media zostaną one automatycznie dopisane do modelu ContentFile/CategoryFile.
-- Obsługiwane przypadki:
-  - Avatar (obraz): content_{uuid}.webp, content{uuid}.webp, {uuid}.webp (dla treści) lub analogicznie dla kategorii; zostaną wpisane pod kluczem display (np. 'large').
-  - Wideo (Content): video_{uuid}.mp4 lub video_{uuid}.webm na dysku content_video (lub content) — zostanie wpisane pod kluczem display (np. 'hd').
-- Dzięki temu dalsze przetwarzanie z użyciem modeli i accessorów jest spójne.
-
-Uwagi dot. zgodności wstecznej
-- Nazwy plików nie są już generowane na podstawie atrybutów modelu – są niezależne (ULID + rozszerzenie z konfiguracji).
-- Odczyt odbywa się wyłącznie na podstawie wartości zapisanych w tabelach zależnych (names[size]). Jeśli rekordów brak, accessory zwrócą null.
-- Wybór rozmiaru avataru eksponowanego jako avatar_path jest kontrolowany przez konfigurację (display).
-- Legacy avatar_path (bez konieczności ponownego uploadu): Jeśli w starszej wersji pakietu nazwy plików avatarów były w formacie prefix + uuid + rozszerzenie (np. content_{$uuid}.webp lub category{$uuid}.webp), trait DynamicAvatarAccessor automatycznie sprawdzi takie nazwy na odpowiednim dysku, gdy nie znajdzie plików według nowych metadanych. Obsługiwane warianty prefiksów: '{entity}_', '{entity}' oraz sam '{uuid}'. Rozszerzenie jest pobierane z config('cms.avatar.extension') (domyślnie webp). Dzięki temu istniejące obrazy będą wyświetlane bez potrzeby ponownego wgrywania. Fallback dotyczy tylko obrazów (nie dotyczy wideo).
+Backward compatibility and fallbacks
+- Avatar and poster: if *_files metadata is missing, the trait checks legacy names on disk (prefix + uuid + extension) and returns their URL when present.
+- Video: for Content, legacy naming (video_{uuid}.mp4|webm) is supported as a fallback (helpers are available to clean old files when replaceExisting is used).
+- Dynamic properties (e.g., small_avatar_path) are handled gracefully — if a specific size is missing, the trait tries other variants and profiles.
 
 FAQ / Troubleshooting
-- Nie widzę URL w avatar_path: Upewnij się, że istnieje rekord w *_files o kind = 'avatar' z wypełnionym names[display]. Sprawdź też, czy plik fizycznie istnieje na skonfigurowanym dysku i czy storage:link jest utworzone.
-- Błąd ścieżek/dysków: Zweryfikuj config('cms.disks.*') oraz config/filesystems.php. Dysk musi być dostępny i poprawnie skonfigurowany.
-- Wielojęzyczne pola nie zapisują się: Pamiętaj o translateOrNew('locale') i unikalności par (uuid, locale) w tabelach tłumaczeń.
-- Struktura kategorii: Modele używają kalnoy/nestedset – posługuj się metodami z pakietu (np. appendToNode, ancestorsAndSelf, itp.).
+- No URL in avatar_path — check the *_files record with kind = 'avatar' and the file presence on the disk pointed by config('cms.disks.*').
+- Missing sizes — complete config('cms.files.{entity}.types.{kind}.sizes') or use uploadModelImageWithDefaults.
+- Issues with video/poster — verify file_config_key_map for 'video_avatar' and 'video_poster' and the 'content_video' disk settings.
+- Multilingual — remember to use translateOrNew('locale') and run translation migrations.
+- v2→v3 migration — follow the checklist and snippet above; publish migrations and configure mappings first.
 
-Licencja
+Contributing & Collaboration
+- Contributions, ideas, and collaboration offers are very welcome. Feel free to open issues and pull requests.
+- If you want to discuss a feature or commercial collaboration, please reach out via GitHub issues.
+
+Support this project (Ko‑fi)
+If this package saves you time, consider buying me a coffee: https://ko-fi.com/dominservice — thank you!
+
+License
 MIT
-
-
-## Plan migracji danych i eliminacji ContentVideo
-
-Cel: całkowicie przenieść przechowywanie informacji o wideo z tabeli cms_content_videos (model ContentVideo) do unified storage w cms_content_files (model ContentFile) z rozdzieleniem na:
-- kind = "video_avatar" (type = "video") — wiele wariantów wideo (np. hd/sd/mobile)
-- kind = "video_poster" (type = "image") — obraz pierwszej klatki (poster)
-
-Po migracji ContentVideo będzie zbędny i może zostać usunięty.
-
-Etapy (proponowana oś czasu)
-1) Przygotowanie (Dzień 0)
-- Upewnij się, że wdrożona jest wersja pakietu zawierająca:
-  - modele ContentFile/CategoryFile z kolumną type = 'image'|'video'
-  - helper Media::uploadModelVideos oraz Media::uploadModelImage dla kind = video_poster
-  - accessor $content->video_avatar_path i $content->video_poster_path
-- Zweryfikuj konfigurację:
-  - config('cms.disks.content_video') wskazuje poprawny dysk (np. public)
-  - config('cms.files.content.types.video_avatar.sizes') zawiera dopuszczalne klucze (np. hd/sd/mobile)
-  - config('cms.files.content.types.video_avatar.display') ustawiony (np. hd)
-  - config('cms.files.content.types.video_poster.sizes') i display ustawione (np. large)
-- Wykonaj pełną kopię bazy i plików (storage/app/public). To krok obowiązkowy.
-
-2) Backfill danych (Dzień 0)
-Przenieś wpisy z cms_content_videos do cms_content_files w formie jednowariantowej (np. tylko 'hd'), bez utraty kompatybilności.
-
-Wariant A: SQL (szybki backfill jednowariantowy)
-- Założenie: w cms_content_videos jest plik źródłowy (np. 1 sztuka na content), który traktujemy jako wariant 'hd'.
-
-Przykładowy SQL (MySQL/MariaDB):
-```sql
-INSERT INTO cms_content_files (uuid, content_uuid, kind, type, names, created_at, updated_at, deleted_at)
-SELECT UUID(), v.content_uuid, 'video_avatar' AS kind, 'video' AS type,
-       JSON_OBJECT('hd', v.name) AS names,
-       NOW(), NOW(), NULL
-FROM cms_content_videos v
-LEFT JOIN cms_content_files f
-  ON f.content_uuid = v.content_uuid AND f.kind = 'video_avatar' AND f.deleted_at IS NULL
-WHERE f.uuid IS NULL;
-```
-Uwaga: UUID() można zastąpić generatorem zgodnym z Twoją bazą; jeśli kolumna uuid to CHAR(36) z aplikacyjnym UUID/ULID, rozważ backfill przez skrypt aplikacyjny (Wariant B), aby użyć helpera generującego.
-
-Wariant B: Skrypt w Laravel (Eloquent) — bezpieczniejszy i elastyczny
-```php
-use Dominservice\LaravelCms\Models\Content;
-use Dominservice\LaravelCms\Models\ContentFile;
-use Illuminate\Support\Facades\DB;
-
-DB::transaction(function () {
-    Content::query()
-        ->with('video')
-        ->whereHas('video')
-        ->chunkById(200, function ($contents) {
-            foreach ($contents as $content) {
-                $exists = $content->files()
-                    ->where('kind', 'video_avatar')
-                    ->exists();
-                if ($exists) { continue; }
-
-                $name = optional($content->video)->name; // nazwa pliku wideo z legacy tabeli
-                if (!$name) { continue; }
-
-                ContentFile::create([
-                    'content_uuid' => $content->uuid,
-                    'kind' => 'video_avatar',
-                    'type' => 'video',
-                    'names' => ['hd' => $name],
-                ]);
-            }
-        });
-});
-```
-
-3) Poster (opcjonalny, ale zalecany) (Dzień 0–1)
-- Jeśli posiadasz obrazy pierwszej klatki: utwórz dla każdego content rekord kind = 'video_poster', type = 'image' w cms_content_files przy pomocy Media::uploadModelImage($content, $file, 'video_poster').
-- Jeśli nie masz posterów — etap można pominąć lub wygenerować je w przyszłości.
-
-4) Okres przejściowy (Dzień 1–X)
-- W aplikacji produkcyjnej używaj już tylko nowych accessorów i danych:
-  - Odczyt URL wideo: $content->video_avatar_path (zwraca rozmiar wg display, domyślnie 'hd').
-  - Odczyt posteru: $content->video_poster_path.
-  - Listy plików: $content->videoFilesList() (type = 'video'), $content->imageFilesList() (type = 'image').
-- Zachowaj istniejącą relację Content->video() jako fallback (dla pełnej zgodności wstecznej) na czas przejściowy.
-- Nowe zapisy wideo kieruj WYŁĄCZNIE do ContentFile przez Media::uploadModelVideos.
-
-5) Deprecjacja API (Dzień X)
-- Zaktualizuj kod aplikacji:
-  - PRZESTAŃ używać: $content->video_path i $content->video (relacja).
-  - Zastąp przez: $content->video_avatar_path oraz $content->files()->where('kind','video_avatar')->first().
-- Opcjonalnie dodaj ostrzeżenia/deprecation notice w kodzie aplikacyjnym (niekoniecznie w pakiecie) jeśli nadal ktoś odwołuje się do legacy API.
-
-6) Usunięcie ContentVideo (Dzień X+1)
-- Upewnij się, że od co najmniej 1 cyklu wydawniczego nie ma wywołań legacy API.
-- Usuń w swojej aplikacji zależności od ContentVideo: zapytania, seedy, form requesty, kontrolery.
-- W tym pakiecie w kolejnym wydaniu można:
-  - usunąć model Dominservice\\LaravelCms\\Models\\ContentVideo,
-  - usunąć relację Content::video() i accessor getVideoPathAttribute(),
-  - usunąć klucz tabeli 'content_video' z configu,
-  - dodać migration drop table cms_content_videos (jeśli tabela jest własnością pakietu i nie jest używana gdzie indziej).
-
-Weryfikacja po migracji
-- Sprawdzanie spójności rekordów:
-```sql
--- treści posiadające legacy video bez nowego wpisu w files
-SELECT v.content_uuid
-FROM cms_content_videos v
-LEFT JOIN cms_content_files f
-  ON f.content_uuid = v.content_uuid AND f.kind = 'video_avatar' AND f.deleted_at IS NULL
-WHERE f.uuid IS NULL;
-```
-- Sprawdź poprawność URL:
-  - Dla kilku rekordów pobierz $content->video_avatar_path i zweryfikuj, że plik istnieje na dysku config('cms.disks.content_video').
-- Testy E2E/aplikacyjne:
-  - Widok listy i detali Content wyświetla właściwy plik wideo/poster.
-  - Upload nowych wideo trafia do cms_content_files, a nie do cms_content_videos.
-
-Rollback (awaryjnie)
-- Jeśli po backfillu zauważysz problemy:
-  - Możesz tymczasowo wrócić do accessorów opartych o ContentVideo (video_path), ponieważ pliki fizyczne nie zostały ruszone.
-  - Usuń lub soft-delete rekordy 'video_avatar' w cms_content_files, o ile to konieczne.
-  - Przywróć kopię bazy i/lub storage z backupu wykonanym w etapie 1.
-
-Checklist zmian w aplikacji (poza pakietem)
-- [ ] Wszystkie miejsca używające $content->video_path zrefaktoryzowane do $content->video_avatar_path.
-- [ ] Zapisy nowych wideo korzystają z Media::uploadModelVideos.
-- [ ] W widokach/posterach użyty $content->video_poster_path (jeśli wymagane).
-- [ ] Monitoring 404 dla wideo — brak.
-- [ ] Feature toggles/konfiguracja wyłączająca stare API — wdrożona.
-
-Notatki
-- W tym pakiecie pozostawiono ContentVideo dla kompatybilności. Plan zakłada jego usunięcie w kolejnym głównym wydaniu po okresie przejściowym. Jeśli chcesz, możesz przyspieszyć usunięcie w swoim forku/projekcie, stosując się do listy w punkcie 6.
