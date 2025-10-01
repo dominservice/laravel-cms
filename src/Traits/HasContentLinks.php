@@ -11,12 +11,13 @@ trait HasContentLinks
     {
         return $this->belongsToMany(
             static::class,
-            'cms_content_links',
+            config('cms.tables.content_links'),
             'from_uuid',
             'to_uuid',
             'uuid',
             'uuid',
         )
+            ->as('link')
             ->withPivot(['relation','position','meta','visible_from','visible_to','created_at','updated_at'])
             ->using(\Dominservice\LaravelCms\Models\ContentLink::class);
     }
@@ -26,12 +27,13 @@ trait HasContentLinks
     {
         return $this->belongsToMany(
             static::class,
-            'cms_content_links',
+            config('cms.tables.content_links'),
             'to_uuid',
             'from_uuid',
             'uuid',
             'uuid'
         )
+            ->as('link')
             ->withPivot(['relation','position','meta','visible_from','visible_to','created_at','updated_at'])
             ->using(\Dominservice\LaravelCms\Models\ContentLink::class);
     }
@@ -39,7 +41,15 @@ trait HasContentLinks
     /** Filtrowanie po nazwie relacji, ale nie jest wymagane aby ją mieć */
     public function linksOf(?string $relation): BelongsToMany
     {
-        return $this->links()->when($relation !== null, fn($q) => $q->wherePivot('relation', $relation));
+        $q = $this->links(); // to Twoje belongsToMany z ->as('link')
+
+        if (is_array($relation)) {
+            $q->whereIn(config('cms.tables.content_links').'.relation', $relation);
+        } elseif ($relation !== null) {
+            $q->where(config('cms.tables.content_links').'.relation', '=', $relation);
+        }
+
+        return $q;
     }
 
     public function backlinksOf(?string $relation): BelongsToMany
@@ -53,14 +63,14 @@ trait HasContentLinks
         $now = now();
         return $this->linksOf($relation)
             ->where(function ($q) use ($now) {
-                $q->whereNull('cms_content_links.visible_from')
-                    ->orWhere('cms_content_links.visible_from', '<=', $now);
+                $q->whereNull(config('cms.tables.content_links').'.visible_from')
+                    ->orWhere(config('cms.tables.content_links').'.visible_from', '<=', $now);
             })
             ->where(function ($q) use ($now) {
-                $q->whereNull('cms_content_links.visible_to')
-                    ->orWhere('cms_content_links.visible_to', '>=', $now);
+                $q->whereNull(config('cms.tables.content_links').'.visible_to')
+                    ->orWhere(config('cms.tables.content_links').'.visible_to', '>=', $now);
             })
-            ->orderBy('cms_content_links.position');
+            ->orderBy(config('cms.tables.content_links').'.position');
     }
 
     /** Pomocnicze metody API — neutralne semantycznie */

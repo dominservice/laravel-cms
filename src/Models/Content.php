@@ -46,6 +46,7 @@ class Content extends Model
 
     protected $casts = [
         'external_url' => 'string',
+        'meta'         => 'object',
     ];
 
     protected $fillable = [

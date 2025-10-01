@@ -47,6 +47,17 @@ class FakeDisk
         $path = $this->root . '/' . ltrim($name, '/');
         return filemtime($path) ?: time();
     }
+
+    public function delete($paths): void
+    {
+        $items = is_array($paths) ? $paths : [$paths];
+        foreach ($items as $name) {
+            $path = $this->root . '/' . ltrim((string)$name, '/');
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
 }
 
 class FakeFilesystem
@@ -74,10 +85,24 @@ Facade::setFacadeApplication($app);
 
 $config = new ConfigRepository();
 $app['config'] = $config;
+$app->instance(\Illuminate\Contracts\Config\Repository::class, $config);
 
 // Load package config
 $cmsConfig = require __DIR__ . '/../config/cms.php';
 $config->set('cms', $cmsConfig);
+
+// Provide a minimal Locales stub for astrotomic/translatable
+if (!class_exists('FakeLocales')) {
+    class FakeLocales
+    {
+        private string $current = 'en';
+        public function current(): string { return $this->current; }
+        public function default(): string { return 'en'; }
+        public function setCurrent(string $locale): void { $this->current = $locale ?: 'en'; }
+        public function all(): array { return ['en']; }
+    }
+}
+$app->instance(\Astrotomic\Translatable\Locales::class, new FakeLocales());
 
 // Prepare fake filesystem and bind for Storage facade
 $fs = new FakeFilesystem();
