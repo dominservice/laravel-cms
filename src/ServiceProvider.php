@@ -2,20 +2,30 @@
 
 namespace Dominservice\LaravelCms;
 
+use Dominservice\LaravelCms\Console\CmsMediaMigrateV4;
+use Dominservice\LaravelCms\Console\Commands\RedirectConfig;
+use Dominservice\LaravelCms\Http\Middleware\Redirects;
+use Dominservice\LaravelCms\Models\Redirect;
+use Dominservice\LaravelCms\Observers\RedirectObserver;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider as BaseServiceProvider;
-use Dominservice\LaravelCms\Console\CmsMediaMigrateV4;
 
 class ServiceProvider extends BaseServiceProvider
 {
     private int $lpMigration = 0;
 
-    public function boot(Filesystem $filesystem): void
+    public function boot(Filesystem $filesystem, Router $router): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([CmsMediaMigrateV4::class]);
+            $this->commands([
+                CmsMediaMigrateV4::class,
+                RedirectConfig::class,
+            ]);
         }
+
+        Redirect::observe(RedirectObserver::class);
 
         $this->publishes([
             __DIR__ . '/../config/cms.php' => config_path('cms.php'),
@@ -35,6 +45,9 @@ class ServiceProvider extends BaseServiceProvider
             __DIR__.'/../database/migrations/create_cms_content_links_table.php.stub' => $this->getMigrationFileName($filesystem, 'create_cms_content_links_table'),
             __DIR__.'/../database/migrations/add_order_column_content_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_order_column_content_table'),
         ], 'migrations');
+
+        $router->prependMiddlewareToGroup('web', Redirects::class);
+
     }
 
     public function register(): void
