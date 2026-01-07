@@ -16,4 +16,9 @@ class RedirectObserver
     {
         Artisan::call('regenerate-redirect');
     }
+
+    public function deleted(Redirect $redirect): void
+    {
+        Artisan::call('regenerate-redirect');
+    }
 }
