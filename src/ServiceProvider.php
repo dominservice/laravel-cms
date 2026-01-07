@@ -5,6 +5,7 @@ namespace Dominservice\LaravelCms;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider as BaseServiceProvider;
+use Dominservice\LaravelCms\Console\CmsMediaMigrateV4;
 
 class ServiceProvider extends BaseServiceProvider
 {
@@ -12,6 +13,10 @@ class ServiceProvider extends BaseServiceProvider
 
     public function boot(Filesystem $filesystem): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([CmsMediaMigrateV4::class]);
+        }
+
         $this->publishes([
             __DIR__ . '/../config/cms.php' => config_path('cms.php'),
         ], 'config');
@@ -28,6 +33,7 @@ class ServiceProvider extends BaseServiceProvider
             __DIR__.'/../database/migrations/add_external_url_to_contents_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_external_url_to_contents_table'),
             __DIR__.'/../database/migrations/add_parent_to_content_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_parent_to_content_table'),
             __DIR__.'/../database/migrations/create_cms_content_links_table.php.stub' => $this->getMigrationFileName($filesystem, 'create_cms_content_links_table'),
+            __DIR__.'/../database/migrations/add_order_column_content_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_order_column_content_table'),
         ], 'migrations');
     }
 

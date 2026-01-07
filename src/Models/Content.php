@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
  * @property bool $status
  * @property bool $is_nofollow
  * @property string|null $external_url
+ * @property int|null $sort
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -55,6 +56,7 @@ class Content extends Model
         'status',
         'is_nofollow',
         'external_url',
+        'sort',
     ];
 
     public $translatedAttributes = [

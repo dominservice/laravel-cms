@@ -172,54 +172,76 @@ trait DynamicAvatarAccessor
      */
     public function __get($key)
     {
-        if (!is_string($key)) {
+        try {
+            $val = $this->_get((string) $key);
+            if ($val !== null) {
+                return $val;
+            }
+        } catch (\Throwable $e) {
+            // ignorujemy i lecimy do parent::__get
+        }
+
+        // Jeśli klasa bazowa ma własny __get, oddeleguj
+        if (is_string($parent = get_parent_class($this)) && method_exists($parent, '__get')) {
             return parent::__get($key);
         }
 
-        // 1) Dynamic video avatar sizes: e.g. mobile_video_avatar_path, hd_video_avatar_path
-        if (str_ends_with($key, '_video_avatar_path')) {
-            $size = substr($key, 0, -strlen('_video_avatar_path'));
-            if ($size !== '') {
-                $val = $this->resolveVideoUrlForSize($size);
-                if ($val !== null) {
-                    return $val;
-                }
-            }
-        }
-
-        // 2) Dynamic video poster sizes: e.g. small_video_poster_path, large_video_poster_path, thumb_video_poster_path
-        if (str_ends_with($key, '_video_poster_path')) {
-            $size = substr($key, 0, -strlen('_video_poster_path'));
-            if ($size !== '') {
-                $val = $this->resolvePosterUrlForSize($size);
-                if ($val !== null) {
-                    return $val;
-                }
-            }
-        }
-
-        // 3) Dynamic image avatar sizes: small_avatar_path, thumb_avatar_path (optionally mobile_thumb_avatar_path)
-        if (str_ends_with($key, '_avatar_path')) {
-            $raw = substr($key, 0, -strlen('_avatar_path'));
-            if ($raw !== 'avatar') {
-                $profile = null;
-                $size = $raw;
-                // Support composite key: mobile_large_avatar_path or desktop_thumb_avatar_path
-                if (str_contains($raw, '_')) {
-                    [$maybeProfile, $maybeSize] = explode('_', $raw, 2);
-                    if (in_array($maybeProfile, ['mobile','desktop'], true) && $maybeSize) {
-                        $profile = $maybeProfile;
-                        $size = $maybeSize;
-                    }
-                }
-                $val = $this->resolveAvatarUrlForSize($size, $profile);
-                if ($val !== null) {
-                    return $val;
-                }
-            }
-        }
-        return parent::__get($key);
+        // Ostatecznie zgodnie z Twoim założeniem ma być null
+        return null;
     }
+//    public function __get($key)
+//    {
+//        $val = $this->_get((string)$key);
+//        if ($val !== null) {
+//            return $val;
+//        }
+//        return parent::__get($key);
+//    }
+//
+//    // 1) Dynamic video avatar sizes: e.g. mobile_video_avatar_path, hd_video_avatar_path
+//if (str_ends_with($key, '_video_avatar_path')) {
+//$size = substr($key, 0, -strlen('_video_avatar_path'));
+//if ($size !== '') {
+//$val = $this->resolveVideoUrlForSize($size);
+//if ($val !== null) {
+//return $val;
+//}
+//}
+//}
+//
+//// 2) Dynamic video poster sizes: e.g. small_video_poster_path, large_video_poster_path, thumb_video_poster_path
+//if (str_ends_with($key, '_video_poster_path')) {
+//    $size = substr($key, 0, -strlen('_video_poster_path'));
+//    if ($size !== '') {
+//        $val = $this->resolvePosterUrlForSize($size);
+//        if ($val !== null) {
+//            return $val;
+//        }
+//    }
+//}
+//
+//// 3) Dynamic image avatar sizes: small_avatar_path, thumb_avatar_path (optionally mobile_thumb_avatar_path)
+//if (str_ends_with($key, '_avatar_path')) {
+//    $raw = substr($key, 0, -strlen('_avatar_path'));
+//    if ($raw !== 'avatar') {
+//        $profile = null;
+//        $size = $raw;
+//        // Support composite key: mobile_large_avatar_path or desktop_thumb_avatar_path
+//        if (str_contains($raw, '_')) {
+//            [$maybeProfile, $maybeSize] = explode('_', $raw, 2);
+//            if (in_array($maybeProfile, ['mobile','desktop'], true) && $maybeSize) {
+//                $profile = $maybeProfile;
+//                $size = $maybeSize;
+//            }
+//        }
+//        $val = $this->resolveAvatarUrlForSize($size, $profile);
+//        if ($val !== null) {
+//            return $val;
+//        }
+//    }
+//}
+//return parent::__get($key);
+//}
 
     protected function getConfiguredAvatarDisplaySize(): string
     {
@@ -572,5 +594,38 @@ trait DynamicAvatarAccessor
             }
         }
         return null;
+    }
+
+    /**
+     * Dynamiczny accessor: pozwala podawać różne nazwy (np. avatar, avatar_small, video_hd, poster_display).
+     * Zwraca URL z MediaKit lub null jeśli nie znaleziono.
+     */
+    protected function _get(string $key, ?string $profile = null): ?string
+    {
+        // Mapowanie klucza na kind + variant
+        $key = (string) $key;
+        $variant = null;
+        if (str_starts_with($key, 'avatar')) {
+            $kind = 'avatar';
+            $variant = str_ireplace(['avatar_', 'avatar-'], '', $key);
+            if ($variant === 'avatar' || $variant === 'path' || $variant === '') { $variant = null; }
+        } elseif (str_starts_with($key, 'video')) {
+            $kind = 'video_avatar';
+            $variant = str_ireplace(['video_', 'video-'], '', $key);
+            if ($variant === 'video' || $variant === 'path' || $variant === '') { $variant = null; }
+        } elseif (str_starts_with($key, 'poster')) {
+            $kind = 'video_poster';
+            $variant = str_ireplace(['poster_', 'poster-'], '', $key);
+            if ($variant === 'poster' || $variant === 'path' || $variant === '') { $variant = null; }
+        } else {
+            // Fallback: traktuj całość jako kind
+            $kind = $key;
+        }
+
+        try {
+            return \Dominservice\LaravelCms\Media\MediaKitBridge::firstUrl($this, $kind, $variant ?: null);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

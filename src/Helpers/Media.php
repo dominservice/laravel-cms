@@ -119,8 +119,10 @@ class Media
         [$entityKey, $diskKey, $sizesCfg] = self::resolveEntityContext($model, $kind);
         // Enforce semantic: files.type indicates media kind ('image'|'video'). For images we default to 'image'.
         if ($type === null) {
-            $type = 'image';
+            /** @deprecated od v4 – deleguj do MediaKitBridge::uploadImage() z zachowaniem sygnatury. */
+            return \Dominservice\LaravelCms\Media\MediaKitBridge::uploadImage($model, $source, $kind, $replaceExisting ? 'replace' : 'keep', $filters ?? null);
         }
+
 
         // Filter sizes according to $onlySizes
         $sizes = $sizesCfg['sizes'] ?? [];
@@ -507,8 +509,10 @@ class Media
 
         $sizes = $sizesCfg['sizes'] ?? [];
         if ($onlySizes !== null) {
-            $sizes = array_intersect_key($sizes, array_flip($onlySizes));
+            /** @deprecated od v4 – deleguj do MediaKitBridge::uploadImage() z domyślnymi filtrami. */
+            return \Dominservice\LaravelCms\Media\MediaKitBridge::uploadImage($model, $sourcesBySize, $kind, $replaceExisting ? 'replace' : 'keep', $filters ?? null);
         }
+
         if (empty($sizes)) {
             throw new InvalidArgumentException("No sizes defined for {$entityKey}.types.{$kind}");
         }
@@ -577,8 +581,15 @@ class Media
     {
         // Default semantic for videos: files.type = 'video' unless explicitly set
         if ($type === null) {
-            $type = 'video';
+            /** @deprecated od v4 – deleguj do MediaKitBridge::uploadVideoRendition() dla każdej pozycji. */
+            foreach ($sourcesBySize as $rendition => $file) {
+                if ($file) {
+                    \Dominservice\LaravelCms\Media\MediaKitBridge::uploadVideoRendition($model, $file, is_string($rendition)?$rendition:'hd'); }
+            }
+
+            return $model;
         }
+
         // Determine entity and sizes config
         $entityKey = null;
         if ($model instanceof Content) {
