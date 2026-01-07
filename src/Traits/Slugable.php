@@ -36,8 +36,6 @@ trait Slugable
                         $redirectItem->url_to = $item->url;
                         $redirectItem->url_from = $oldUrl;
                         $redirectItem->save();
-
-                        \Illuminate\Support\Facades\Artisan::call('pn:redirect-config');
                     } catch (\Exception $e) {
                     }
                 }
