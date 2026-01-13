@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
  * @property bool $status
  * @property bool $is_nofollow
  * @property string|null $external_url
+ * @property object|null $meta
  * @property int|null $sort
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -45,11 +46,6 @@ class Content extends Model
 
     protected string $fileConfigKey = 'content';
 
-    protected $casts = [
-        'external_url' => 'string',
-        'meta'         => 'object',
-    ];
-
     protected $fillable = [
         'parent_uuid',
         'type',
@@ -70,6 +66,15 @@ class Content extends Model
         'meta_keywords',
         'meta_description',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'type' => config('cms.types.category'),
+            'external_url' => 'string',
+            'meta'         => 'object',
+        ];
+    }
 
     /**
      * Get the table associated with the model.

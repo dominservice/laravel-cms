@@ -24,3 +24,5 @@ Homestead.json
 
 composer.lock
 .idea
+
+data_to_test

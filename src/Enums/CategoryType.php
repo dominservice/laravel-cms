@@ -2,8 +2,12 @@
 
 namespace Dominservice\LaravelCms\Enums;
 
+use App\Enums\Concerns\HasLabel;
+
 enum CategoryType: string
 {
+    use HasLabel;
+
     case Default = 'default';
 
     public static function values(): array

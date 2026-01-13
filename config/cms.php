@@ -4,72 +4,12 @@ return [
     'date_format' => 'd/m/Y',
     'time_format' => 'H:i',
     'url_route' => null,
-    // Optional: override locales used for admin forms and route generation.
-    // If null, falls back to data_locale_parser.allowed_locales, then translatable.locales.
-    'locales' => null,
 
     // Content/category types can be declared as enum classes or plain arrays.
     // You can override these in your app config to use custom enums.
     'types' => [
         'content' => \Dominservice\LaravelCms\Enums\ContentType::class,
         'category' => \Dominservice\LaravelCms\Enums\CategoryType::class,
-    ],
-
-    // Structured pages/sections used by the admin UI and routes.
-    'structure' => [
-        'page_type' => 'page',
-        'block_type' => 'block',
-        'pages' => [
-            // 'home' => [
-            //     'label' => 'Home',
-            //     'route' => [
-            //         'name' => 'home',
-            //         'slug' => '/', // string, locale array, or use translated slugs
-            //         'translated' => true, // uses translation_group + translation_key
-            //         'translation_key' => 'home', // defaults to page key
-            //     ],
-            //     'sections' => [
-            //         'hero' => ['label' => 'Hero'],
-            //         'features' => ['label' => 'Features'],
-            //     ],
-            // ],
-        ],
-    ],
-
-    // Frontend routing (public pages + categories).
-    'routes' => [
-        'enabled' => true,
-        'middleware' => ['web'],
-        'use_locales' => true,
-        'use_locale_prefix' => true,
-        'locale_middleware' => 'language', // data_locale_parser middleware name
-        'translation_group' => 'routes',
-        'translated_slugs' => true,
-        'page' => [
-            'controller' => \Dominservice\LaravelCms\Http\Controllers\Frontend\PageController::class,
-        ],
-        'category' => [
-            'enabled' => true,
-            'prefix' => 'category',
-            'route_name' => 'category.show',
-            'controller' => \Dominservice\LaravelCms\Http\Controllers\Frontend\CategoryController::class,
-        ],
-    ],
-
-    // Admin UI (controllers + views).
-    'admin' => [
-        'enabled' => true,
-        'prefix' => 'cms',
-        'route_name_prefix' => 'cms.',
-        'middleware' => ['web', 'auth'],
-        'layout' => 'cms::layouts.bootstrap',
-    ],
-
-    'views' => [
-        'frontend' => [
-            'page' => 'cms::frontend.page',
-            'category' => 'cms::frontend.category',
-        ],
     ],
 
     'tables' => [
