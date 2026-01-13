@@ -56,7 +56,6 @@ class Content extends Model
         'status',
         'is_nofollow',
         'external_url',
-        'meta',
         'sort',
     ];
 
