@@ -48,6 +48,10 @@
     - [Profiles & sizes (files.*)](#profiles--sizes-files)
     - [Kind ↔ config mapping (file_config_key_map)](#kind--config-mapping-file_config_key_map)
     - [Logical name mapping (file_kind_map)](#logical-name-mapping-file_kind_map)
+    - [Content structure (pages & sections)](#content-structure-pages--sections)
+    - [Types & enums](#types--enums)
+    - [Admin UI (pages & categories)](#admin-ui-pages--categories)
+    - [Routes & localized slugs](#routes--localized-slugs)
 - [Models & relations](#models--relations)
 - [Media: write (backward-compatible & recommended)](#media-write-backward-compatible--recommended)
 - [Media: read (DynamicAvatarAccessor)](#media-read-dynamicavataraccessor)
@@ -114,6 +118,141 @@ Aliases one config key to another for `kind` resolution.
 
 ### Logical name mapping (`file_kind_map`)
 Maps logical names consumed by accessors (e.g. `avatar`, `video_avatar`, `video_poster`) to concrete kinds.
+
+### Content structure (pages & sections)
+Define fixed pages and optional sections in `config/cms.php`. Pages are stored as `Content` with type `page`,
+and sections are stored as `Content` children (type `block`) with metadata keys:
+`meta.page_key` and `meta.section_key`.
+
+```php
+// config/cms.php
+'structure' => [
+    'page_type' => 'page',
+    'block_type' => 'block',
+    'pages' => [
+        'home' => [
+            'label' => 'Home',
+            'route' => [
+                'name' => 'home',
+                'slug' => '/',
+                'translated' => true,
+            ],
+            'sections' => [
+                'hero' => ['label' => 'Hero'],
+                'features' => ['label' => 'Features'],
+            ],
+        ],
+        'contact' => [
+            'label' => 'Contact',
+            'route' => [
+                'name' => 'contact',
+                'translated' => true,
+            ],
+        ],
+    ],
+],
+```
+
+### Types & enums
+Content/category types are strings stored in `contents.type` and `categories.type`. You can use enums or arrays:
+
+```php
+// config/cms.php
+'types' => [
+    'content' => \App\Enums\ContentType::class, // or ['page', 'block', 'faq']
+    'category' => \App\Enums\CategoryType::class, // or ['default', 'product']
+],
+```
+
+### Admin UI (pages & categories)
+Enable the built-in admin views and configure middleware/layout:
+
+```php
+'admin' => [
+    'enabled' => true,
+    'prefix' => 'cms',
+    'route_name_prefix' => 'cms.',
+    'middleware' => ['web', 'auth'],
+    'layout' => 'cms::layouts.bootstrap', // or cms::layouts.plain / your own layout
+],
+```
+
+Publish views if you want to customize them:
+
+```bash
+php artisan vendor:publish --provider="Dominservice\\LaravelCms\\ServiceProvider" --tag=views
+```
+
+### Routes & localized slugs
+Routes are generated from `cms.structure.pages` and `cms.routes`. You can enable multi-locale routes,
+use a locale prefix (`/en/...`), and translate slugs with language files.
+
+```php
+'routes' => [
+    'enabled' => true,
+    'use_locales' => true,
+    'use_locale_prefix' => true,
+    'locale_middleware' => 'language', // data_locale_parser
+    'translation_group' => 'routes',
+    'translated_slugs' => true,
+    'category' => [
+        'prefix' => 'category',
+    ],
+],
+```
+
+Add translated slugs in language files (default group: `routes`):
+
+```php
+// resources/lang/pl/routes.php
+return [
+    'home' => '',
+    'contact' => 'kontakt',
+    'category' => 'kategoria',
+];
+```
+
+If you use `dominservice/data_locale_parser`, register its middleware and let it drive locales:
+
+```php
+// app/Http/Kernel.php
+protected $routeMiddleware = [
+    'language' => \Dominservice\DataLocaleParser\Http\Middleware\LanguageMiddleware::class,
+];
+
+protected $middlewareGroups = [
+    'web' => [
+        \Dominservice\DataLocaleParser\Http\Middleware\SetLocaleMiddleware::class,
+    ],
+];
+```
+
+Then set `cms.routes.locale_middleware` to `language` and keep locales in
+`data_locale_parser.allowed_locales`.
+
+If you are not using `data_locale_parser`, set `cms.routes.locale_middleware` to `null`
+and manage locales via `cms.locales` or `translatable.locales`.
+
+Frontend views are minimal by default. You can point to your own views with:
+
+```php
+'views' => [
+    'frontend' => [
+        'page' => 'your.view',
+        'category' => 'your.view',
+    ],
+],
+```
+
+If you update the package, publish the new `cms.php` and merge the new keys (structure/routes/admin/types),
+then clear config cache:
+
+```bash
+php artisan vendor:publish --provider="Dominservice\\LaravelCms\\ServiceProvider" --tag=config
+php artisan vendor:publish --provider="Dominservice\\LaravelCms\\ServiceProvider" --tag=migrations
+php artisan migrate
+php artisan config:clear
+```
 
 ## Models & relations
 - `Models\Content`, `Models\Category` (translations, meta).

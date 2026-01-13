@@ -27,9 +27,15 @@ class ServiceProvider extends BaseServiceProvider
 
         Redirect::observe(RedirectObserver::class);
 
+        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'cms');
+
         $this->publishes([
             __DIR__ . '/../config/cms.php' => config_path('cms.php'),
         ], 'config');
+
+        $this->publishes([
+            __DIR__ . '/../resources/views' => resource_path('views/vendor/cms'),
+        ], 'views');
 
         $this->publishes([
             __DIR__.'/../database/migrations/create_cms_tables.php.stub' => $this->getMigrationFileName($filesystem, 'create_cms_tables'),
@@ -44,7 +50,16 @@ class ServiceProvider extends BaseServiceProvider
             __DIR__.'/../database/migrations/add_parent_to_content_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_parent_to_content_table'),
             __DIR__.'/../database/migrations/create_cms_content_links_table.php.stub' => $this->getMigrationFileName($filesystem, 'create_cms_content_links_table'),
             __DIR__.'/../database/migrations/add_order_column_content_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_order_column_content_table'),
+            __DIR__.'/../database/migrations/add_meta_to_contents_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_meta_to_contents_table'),
         ], 'migrations');
+
+        if (config('cms.routes.enabled', true)) {
+            $this->loadRoutesFrom(__DIR__ . '/../routes/cms.php');
+        }
+
+        if (config('cms.admin.enabled', false)) {
+            $this->loadRoutesFrom(__DIR__ . '/../routes/admin.php');
+        }
 
         $router->prependMiddlewareToGroup('web', Redirects::class);
 
