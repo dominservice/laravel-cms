@@ -1,5 +1,5 @@
 <?php
-namespace App\Enums\Concerns;
+namespace Dominservice\LaravelCms\Enums\Concerns;
 
 trait HasLabel
 {

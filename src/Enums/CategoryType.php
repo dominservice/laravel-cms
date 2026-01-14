@@ -2,7 +2,7 @@
 
 namespace Dominservice\LaravelCms\Enums;
 
-use App\Enums\Concerns\HasLabel;
+use Dominservice\LaravelCms\Enums\Concerns\HasLabel;
 
 enum CategoryType: string
 {
