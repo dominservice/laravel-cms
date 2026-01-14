@@ -47,6 +47,14 @@ class Category extends Model
 
     protected string $fileConfigKey = 'category';
 
+
+    protected function casts(): array
+    {
+        return [
+            'type' => config('cms.types.category'),
+        ];
+    }
+
     /**
      * Get the table associated with the model.
      *
