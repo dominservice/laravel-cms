@@ -116,7 +116,7 @@ class CategoryForm extends Component
         }
 
         session()->flash('status', $this->category->wasRecentlyCreated ? 'Category created.' : 'Category updated.');
-        $this->redirect(route($this->adminRoute('category.index')), navigate: true);
+        $this->redirectRoute($this->adminRoute('category.index'));
     }
 
     public function render(): View

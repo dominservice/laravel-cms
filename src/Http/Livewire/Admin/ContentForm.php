@@ -137,7 +137,7 @@ class ContentForm extends Component
         }
 
         session()->flash('status', $this->content->wasRecentlyCreated ? 'Content created.' : 'Content updated.');
-        $this->redirect(route($this->adminRoute('content.index')), navigate: true);
+        $this->redirectRoute($this->adminRoute('content.index'));
     }
 
     public function render(): View
