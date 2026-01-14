@@ -22,7 +22,10 @@ class CategoryForm extends Component
     public array $types = [];
     public array $parents = [];
     public array $translations = [];
+    public ?string $sectionKey = null;
     public ?string $configKey = null;
+    public ?string $configHandle = null;
+    public ?string $fixedType = null;
     public ?string $type = null;
     public ?string $parent_uuid = null;
     public bool $status = false;
@@ -45,10 +48,24 @@ class CategoryForm extends Component
             ])
             ->all();
 
+        $this->sectionKey = request()->query('section');
         $this->configKey = request()->query('config_key');
+        $this->configHandle = request()->query('config_handle');
+        $this->fixedType = request()->query('type');
+        $sectionConfig = $this->sectionKey
+            ? \Dominservice\LaravelCms\Support\CmsSectionResolver::categorySection($this->sectionKey)
+            : null;
+        if ($sectionConfig) {
+            if (!$this->configKey && !empty($sectionConfig['config_key'])) {
+                $this->configKey = $sectionConfig['config_key'];
+            }
+            if (!$this->fixedType && !empty($sectionConfig['type_explicit'])) {
+                $this->fixedType = $sectionConfig['type'] ?? null;
+            }
+        }
         $this->type = $this->category->type
             ? $this->normalizeTypeValue($this->category->type)
-            : ($this->types[0] ?? 'default');
+            : ($this->fixedType ?: ($this->types[0] ?? 'default'));
         $this->parent_uuid = $this->category->parent_uuid;
         $this->status = (bool) $this->category->status;
         $this->media_type = $this->category->video_path ? 'video' : 'image';
@@ -70,6 +87,10 @@ class CategoryForm extends Component
         $service = new CategorySaveService();
         $this->validate($service->validationRules());
 
+        $sectionConfig = $this->sectionKey
+            ? \Dominservice\LaravelCms\Support\CmsSectionResolver::categorySection($this->sectionKey)
+            : null;
+
         $prepared = $service->prepareTranslatableData($this->translations);
         $data = $prepared['data'];
 
@@ -78,7 +99,7 @@ class CategoryForm extends Component
             return;
         }
 
-        $data['type'] = $this->type ?: ($this->types[0] ?? 'default');
+        $data['type'] = $this->fixedType ?: ($this->type ?: ($this->types[0] ?? 'default'));
         $data['status'] = $this->status ? 1 : 0;
         $data['parent_uuid'] = $this->parent_uuid;
 
@@ -90,8 +111,8 @@ class CategoryForm extends Component
 
         $service->handleMedia($this->category, $this->buildMediaRequest(), !$this->category->wasRecentlyCreated);
 
-        if ($this->configKey) {
-            CmsConfigStore::set($this->configKey, $this->category->uuid);
+        if ($sectionConfig) {
+            $this->persistConfig($sectionConfig, $this->category, $this->configKey, $this->configHandle);
         }
 
         session()->flash('status', $this->category->wasRecentlyCreated ? 'Category created.' : 'Category updated.');
@@ -139,6 +160,27 @@ class CategoryForm extends Component
         }
 
         return (string) $type;
+    }
+
+    private function persistConfig(array $section, Category $category, ?string $configKey, ?string $configHandle): void
+    {
+        if ($configKey) {
+            CmsConfigStore::set($configKey, $category->uuid);
+            return;
+        }
+
+        if (!empty($section['group_key'])) {
+            $itemKey = $section['item_key'] ?? 'category_uuid';
+            $handle = $configHandle ?: CmsConfigStore::generateHandle($category->name ?? $category->uuid, $section['group_key'], $itemKey);
+            $baseKey = $section['group_key'] . '.' . $handle;
+
+            $payload = [];
+            foreach ((array) ($section['defaults'] ?? []) as $key => $value) {
+                $payload[$baseKey . '.' . $key] = $value;
+            }
+            $payload[$baseKey . '.' . $itemKey] = $category->uuid;
+            CmsConfigStore::setMany($payload);
+        }
     }
 
     private function adminRoute(string $name): string

@@ -48,6 +48,7 @@ class CategoryIndex extends Component
                 'columns' => $section['columns'],
                 'items' => $this->mapCategoryItems($items, $section, $locale),
                 'allow_create' => (bool) ($section['allow_create'] ?? true),
+                'create_url' => $this->sectionCreateUrl($section),
             ];
         }
 
@@ -73,6 +74,9 @@ class CategoryIndex extends Component
                 'config_key' => $item['config_key'] ?? null,
                 'config_handle' => $item['key'] ?? null,
             ];
+            if (!empty($section['type_explicit'])) {
+                $query['type'] = $section['type'] ?? null;
+            }
 
             return [
                 'key' => $item['key'] ?? null,
@@ -81,7 +85,7 @@ class CategoryIndex extends Component
                 'model' => $model,
                 'columns' => $columnValues,
                 'edit_url' => $model ? $this->editUrl($model, $query) : null,
-                'create_url' => $model ? null : route($this->adminRoute('category.create')),
+                'create_url' => $model ? null : $this->itemCreateUrl($section, $item),
                 'contents_url' => $model ? route($this->adminRoute('category.contents'), $model) : null,
             ];
         })->all();
@@ -111,6 +115,42 @@ class CategoryIndex extends Component
         $url = route($this->adminRoute('category.edit'), $category);
 
         return $query ? $url . '?' . http_build_query($query) : $url;
+    }
+
+    private function sectionCreateUrl(array $section): ?string
+    {
+        if (empty($section['allow_create'])) {
+            return null;
+        }
+
+        $params = [];
+        if (!empty($section['group_key'])) {
+            $params['section'] = $section['key'];
+        }
+        if (!empty($section['config_key'])) {
+            $params['config_key'] = $section['config_key'];
+        }
+        if (!empty($section['type_explicit'])) {
+            $params['type'] = $section['type'] ?? null;
+        }
+
+        return route($this->adminRoute('category.create'), array_filter($params, static fn ($value) => $value !== null && $value !== ''));
+    }
+
+    private function itemCreateUrl(array $section, array $item): string
+    {
+        $params = [];
+        if (!empty($section['group_key'])) {
+            $params['section'] = $section['key'];
+        }
+        if (!empty($item['config_key'])) {
+            $params['config_key'] = $item['config_key'];
+        }
+        if (!empty($section['type_explicit'])) {
+            $params['type'] = $section['type'] ?? null;
+        }
+
+        return route($this->adminRoute('category.create'), array_filter($params, static fn ($value) => $value !== null && $value !== ''));
     }
 
     private function adminRoute(string $name): string

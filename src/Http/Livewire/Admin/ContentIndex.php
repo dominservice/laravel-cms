@@ -77,6 +77,7 @@ class ContentIndex extends Component
                 'items' => $this->mapContentItems($items, $section, $locale),
                 'blocks' => $this->mapContentItems($blocks, $section, $locale, true),
                 'allow_create' => (bool) ($section['allow_create'] ?? false),
+                'create_url' => $this->sectionCreateUrl($section),
             ];
         }
 
@@ -103,6 +104,9 @@ class ContentIndex extends Component
                 'config_key' => $item['config_key'] ?? null,
                 'config_handle' => $item['key'] ?? null,
             ];
+            if (!empty($section['type_explicit'])) {
+                $query['type'] = $section['type'] ?? null;
+            }
 
             return [
                 'key' => $item['key'] ?? null,
@@ -111,7 +115,7 @@ class ContentIndex extends Component
                 'model' => $model,
                 'columns' => $columnValues,
                 'edit_url' => $model ? $this->editUrl($model, $query) : null,
-                'create_url' => $model ? null : $this->createUrl($section['key'] ?? null, $isBlock ? ($item['key'] ?? null) : null),
+                'create_url' => $model ? null : $this->itemCreateUrl($section, $item, $isBlock),
             ];
         })->all();
     }
@@ -156,6 +160,45 @@ class ContentIndex extends Component
         }
 
         return route($this->adminRoute('content.section.create'), ['section' => $sectionKey]);
+    }
+
+    private function sectionCreateUrl(array $section): ?string
+    {
+        if (empty($section['allow_create'])) {
+            return null;
+        }
+
+        $params = ['section' => $section['key'] ?? null];
+        if (!empty($section['config_key'])) {
+            $params['config_key'] = $section['config_key'];
+        }
+        if (!empty($section['type_explicit'])) {
+            $params['type'] = $section['type'] ?? null;
+        }
+
+        return route($this->adminRoute('content.section.create'), array_filter($params, static fn ($value) => $value !== null && $value !== ''));
+    }
+
+    private function itemCreateUrl(array $section, array $item, bool $isBlock): ?string
+    {
+        if ($isBlock) {
+            return $this->createUrl($section['key'] ?? null, $item['key'] ?? null);
+        }
+
+        $params = [
+            'section' => $section['key'] ?? null,
+        ];
+        if (!empty($item['config_key'])) {
+            $params['config_key'] = $item['config_key'];
+        }
+        if (!empty($section['type_explicit'])) {
+            $params['type'] = $section['type'] ?? null;
+        }
+        if (!empty($item['key'])) {
+            $params['config_handle'] = $item['key'];
+        }
+
+        return route($this->adminRoute('content.section.create'), array_filter($params, static fn ($value) => $value !== null && $value !== ''));
     }
 
     private function adminRoute(string $name): string

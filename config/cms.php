@@ -314,6 +314,7 @@ return [
             ],
         ],
         'content' => [
+            'include_all' => true,
             'default_columns' => ['uuid', 'name', 'type', 'status'],
             'default_form_fields' => [
                 'type',
@@ -361,6 +362,7 @@ return [
             ],
         ],
         'category' => [
+            'include_all' => true,
             'default_columns' => ['uuid', 'name', 'type', 'parent_uuid', 'status'],
             'default_form_fields' => [
                 'type',

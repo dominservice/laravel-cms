@@ -21,14 +21,21 @@
             <h3>{{ $category->uuid ? 'Edit Category' : 'Create Category' }}</h3>
 
             @if(in_array('type', $fields, true))
-                <div class="{{ $cmsUi['form_group'] ?? 'mb-3' }}">
-                    <label class="{{ $cmsUi['label'] ?? '' }}" for="type">Type</label>
-                    <select id="type" wire:model.defer="type" class="{{ $cmsUi['select'] ?? 'form-select' }}">
-                        @foreach($types as $typeOption)
-                            <option value="{{ $typeOption }}">{{ $typeOption }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                @if(!empty($fixedType))
+                    <div class="{{ $cmsUi['form_group'] ?? 'mb-3' }}">
+                        <label class="{{ $cmsUi['label'] ?? '' }}">Type</label>
+                        <div>{{ $fixedType }}</div>
+                    </div>
+                @else
+                    <div class="{{ $cmsUi['form_group'] ?? 'mb-3' }}">
+                        <label class="{{ $cmsUi['label'] ?? '' }}" for="type">Type</label>
+                        <select id="type" wire:model.defer="type" class="{{ $cmsUi['select'] ?? 'form-select' }}">
+                            @foreach($types as $typeOption)
+                                <option value="{{ $typeOption }}">{{ $typeOption }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
             @endif
 
             @if(in_array('parent_uuid', $fields, true))

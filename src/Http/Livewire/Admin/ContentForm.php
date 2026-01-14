@@ -49,10 +49,13 @@ class ContentForm extends Component
         $sectionConfig = $this->sectionKey ? CmsSectionResolver::contentSection($this->sectionKey) : null;
         $blockConfig = ($this->blockKey && $sectionConfig) ? (($sectionConfig['blocks'][$this->blockKey] ?? null)) : null;
 
-        if ($content) {
-            $this->configKey = request()->query('config_key');
-            $this->configHandle = request()->query('config_handle');
-        } else {
+        $this->configKey = request()->query('config_key');
+        $this->configHandle = request()->query('config_handle');
+        $queryType = request()->query('type');
+        if ($queryType) {
+            $this->fixedType = (string) $queryType;
+        }
+        if (!$this->configKey) {
             $this->configKey = $blockConfig['config_key'] ?? $sectionConfig['config_key'] ?? null;
         }
 
@@ -68,7 +71,7 @@ class ContentForm extends Component
             ])
             ->all();
 
-        $this->fixedType = $blockConfig['type'] ?? $sectionConfig['type'] ?? null;
+        $this->fixedType = $this->fixedType ?? ($blockConfig['type'] ?? $sectionConfig['type'] ?? null);
         $this->type = $this->content->type
             ? $this->normalizeTypeValue($this->content->type)
             : ($this->fixedType ?: 'page');
@@ -113,6 +116,7 @@ class ContentForm extends Component
         $data['status'] = $this->status ? 1 : 0;
         $data['is_nofollow'] = $this->is_nofollow ? 1 : 0;
         $data['external_url'] = $this->external_url;
+        $data['parent_uuid'] = $this->content->parent_uuid;
 
         if ($this->content->uuid) {
             $this->content->update($data);

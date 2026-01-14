@@ -13,11 +13,11 @@ return new class extends Migration
     {
         if (Schema::hasTable(config('cms.tables.contents')) ) {
             Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
-                $table->uuid('parent_uuid')->after('uuid');
-                $table->foreign('parent_uuid')->nullable()
-                                    ->references('uuid')
-                                    ->on(config('cms.tables.contents'))
-                                    ->onDelete('cascade');
+                $table->uuid('parent_uuid')->nullable()->after('uuid');
+                $table->foreign('parent_uuid')
+                    ->references('uuid')
+                    ->on(config('cms.tables.contents'))
+                    ->onDelete('cascade');
             });
         }
     }

@@ -7,9 +7,9 @@
             <div class="{{ $cmsUi['card_header'] ?? 'card-header' }}">
                 <div class="{{ $cmsUi['header_row'] ?? '' }}">
                     <div class="{{ $cmsUi['card_title'] ?? 'card-title' }}">{{ $section['label'] }}</div>
-                    @if(!empty($section['allow_create']))
-                        <a class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" href="{{ route($routePrefix . 'content.section.create', ['section' => $section['key']]) }}" wire:navigate>New</a>
-                    @endif
+                @if(!empty($section['allow_create']) && !empty($section['create_url']))
+                    <a class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" href="{{ $section['create_url'] }}" wire:navigate>New</a>
+                @endif
                 </div>
             </div>
             <div class="{{ $cmsUi['card_body'] ?? 'card-body' }}">

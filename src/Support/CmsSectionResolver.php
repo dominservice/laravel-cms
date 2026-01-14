@@ -9,9 +9,19 @@ class CmsSectionResolver
 {
     public static function contentSections(): array
     {
-        $sections = (array) config('cms.admin.content.sections', []);
+        $configuredSections = (array) config('cms.admin.content.sections', []);
+        $sections = $configuredSections;
         if ($sections === []) {
             $sections = self::contentSectionsFromDefaultPages();
+        }
+
+        $includeAll = (bool) config('cms.admin.content.include_all', true);
+        if ($configuredSections !== [] && $includeAll && !array_key_exists('all', $sections)) {
+            $sections['all'] = [
+                'label' => 'All content',
+                'allow_create' => true,
+                'list_all' => true,
+            ];
         }
 
         foreach ($sections as $key => $section) {
@@ -23,12 +33,22 @@ class CmsSectionResolver
 
     public static function categorySections(): array
     {
-        $sections = (array) config('cms.admin.category.sections', []);
+        $configuredSections = (array) config('cms.admin.category.sections', []);
+        $sections = $configuredSections;
         if ($sections === []) {
             $sections = [
                 'categories' => [
                     'label' => 'Categories',
                 ],
+            ];
+        }
+
+        $includeAll = (bool) config('cms.admin.category.include_all', true);
+        if ($configuredSections !== [] && $includeAll && !array_key_exists('all', $sections)) {
+            $sections['all'] = [
+                'label' => 'All categories',
+                'allow_create' => true,
+                'list_all' => true,
             ];
         }
 
@@ -104,7 +124,7 @@ class CmsSectionResolver
 
         if (!empty($section['group_key'])) {
             $groupKey = $section['group_key'];
-            $itemKey = $section['item_key'] ?? 'page_uuid';
+            $itemKey = $section['item_key'] ?? ($modelClass === Category::class ? 'category_uuid' : 'page_uuid');
             $configItems = (array) config($groupKey, []);
 
             foreach ($configItems as $handle => $data) {
@@ -135,7 +155,7 @@ class CmsSectionResolver
         }
 
         $query = $modelClass::query();
-        if (!empty($section['type']) && $modelClass === Content::class) {
+        if (!empty($section['type']) && $modelClass === Content::class && empty($section['list_all'])) {
             $query->where('type', $section['type']);
         }
         $items = $query->get()->map(function ($model) {
@@ -152,9 +172,11 @@ class CmsSectionResolver
 
     private static function normalizeSection(string $key, array $section, string $type): array
     {
+        $hasExplicitType = array_key_exists('type', $section);
         $section['key'] = $key;
         $section['label'] = $section['label'] ?? self::labelFromKey($key);
         $section['type'] = $section['type'] ?? ($type === 'content' ? 'page' : 'default');
+        $section['type_explicit'] = $hasExplicitType;
 
         if (isset($section['form']['fields']) && !isset($section['form_fields'])) {
             $section['form_fields'] = (array) $section['form']['fields'];
