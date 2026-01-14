@@ -8,7 +8,7 @@ codex resume 019bb798-1acf-7612-9ef9-4e1b27acbb45
 -->
 
 <p align="center">
-  <img src="docs/logo.png" alt="Dominservice Laravel CMS" width="140" />
+  <img src="docs/logo.png" alt="Dominservice Laravel CMS" width="600" />
 </p>
 
 <h1 align="center">dominservice/laravel-cms</h1>
