@@ -1,0 +1,95 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (!Schema::hasTable(config('cms.tables.contents'))) {
+            return;
+        }
+
+        $tableName = config('cms.tables.contents');
+        $driver = Schema::getConnection()->getDriverName();
+
+        try {
+            Schema::table($tableName, function (Blueprint $table) {
+                $table->dropForeign(['parent_uuid']);
+            });
+        } catch (\Throwable $e) {
+            // ignore if the FK does not exist
+        }
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            DB::statement("ALTER TABLE `{$tableName}` MODIFY `parent_uuid` CHAR(36) NULL");
+        } elseif ($driver === 'pgsql') {
+            DB::statement("ALTER TABLE \"{$tableName}\" ALTER COLUMN \"parent_uuid\" DROP NOT NULL");
+        } else {
+            try {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->uuid('parent_uuid')->nullable()->change();
+                });
+            } catch (\Throwable $e) {
+                // ignore if change is unsupported for the driver
+            }
+        }
+
+        try {
+            Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+                $table->foreign('parent_uuid')
+                    ->references('uuid')
+                    ->on($tableName)
+                    ->onDelete('cascade');
+            });
+        } catch (\Throwable $e) {
+            // ignore if the FK already exists
+        }
+    }
+
+    public function down(): void
+    {
+        if (!Schema::hasTable(config('cms.tables.contents'))) {
+            return;
+        }
+
+        $tableName = config('cms.tables.contents');
+        $driver = Schema::getConnection()->getDriverName();
+
+        try {
+            Schema::table($tableName, function (Blueprint $table) {
+                $table->dropForeign(['parent_uuid']);
+            });
+        } catch (\Throwable $e) {
+            // ignore if the FK does not exist
+        }
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            DB::statement("ALTER TABLE `{$tableName}` MODIFY `parent_uuid` CHAR(36) NOT NULL");
+        } elseif ($driver === 'pgsql') {
+            DB::statement("ALTER TABLE \"{$tableName}\" ALTER COLUMN \"parent_uuid\" SET NOT NULL");
+        } else {
+            try {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->uuid('parent_uuid')->nullable(false)->change();
+                });
+            } catch (\Throwable $e) {
+                // ignore if change is unsupported for the driver
+            }
+        }
+
+        try {
+            Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+                $table->foreign('parent_uuid')
+                    ->references('uuid')
+                    ->on($tableName)
+                    ->onDelete('cascade');
+            });
+        } catch (\Throwable $e) {
+            // ignore if the FK already exists
+        }
+    }
+};

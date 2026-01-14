@@ -130,7 +130,7 @@ class ContentIndex extends Component
             'uuid' => $model->uuid,
             'name' => $translation?->name ?? '-',
             'slug' => $translation?->slug ?? '-',
-            'type' => (string) $model->type,
+            'type' => $this->normalizeTypeValue($model->type),
             'status' => $model->status ? 'Enabled' : 'Disabled',
             'category' => $model->categories()->first()?->name ?? '-',
             'config_key' => $item['config_key'] ?? '-',
@@ -199,6 +199,19 @@ class ContentIndex extends Component
         }
 
         return route($this->adminRoute('content.section.create'), array_filter($params, static fn ($value) => $value !== null && $value !== ''));
+    }
+
+    private function normalizeTypeValue(mixed $type): string
+    {
+        if ($type instanceof \BackedEnum) {
+            return $type->value;
+        }
+
+        if (is_string($type)) {
+            return $type;
+        }
+
+        return (string) $type;
     }
 
     private function adminRoute(string $name): string

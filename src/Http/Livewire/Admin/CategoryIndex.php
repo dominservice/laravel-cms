@@ -101,7 +101,7 @@ class CategoryIndex extends Component
             'uuid' => $model->uuid,
             'name' => $translation?->name ?? '-',
             'slug' => $translation?->slug ?? '-',
-            'type' => (string) $model->type,
+            'type' => $this->normalizeTypeValue($model->type),
             'status' => $model->status ? 'Enabled' : 'Disabled',
             'parent_uuid' => (string) ($model->parent_uuid ?? '-'),
             'config_key' => $item['config_key'] ?? '-',
@@ -157,5 +157,18 @@ class CategoryIndex extends Component
     {
         $prefix = rtrim((string) config('cms.admin.route_name_prefix', 'cms.'), '.');
         return $prefix === '' ? $name : $prefix . '.' . $name;
+    }
+
+    private function normalizeTypeValue(mixed $type): string
+    {
+        if ($type instanceof \BackedEnum) {
+            return $type->value;
+        }
+
+        if (is_string($type)) {
+            return $type;
+        }
+
+        return (string) $type;
     }
 }
