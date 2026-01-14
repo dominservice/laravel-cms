@@ -8,6 +8,10 @@ use Dominservice\LaravelCms\Http\Middleware\Redirects;
 use Dominservice\LaravelCms\Models\Redirect;
 use Dominservice\LaravelCms\Observers\RedirectObserver;
 use Dominservice\LaravelCms\Support\AdminUi;
+use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryForm;
+use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryIndex;
+use Dominservice\LaravelCms\Http\Livewire\Admin\ContentForm;
+use Dominservice\LaravelCms\Http\Livewire\Admin\ContentIndex;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Collection;
@@ -67,6 +71,13 @@ class ServiceProvider extends BaseServiceProvider
 
         if (config('cms.routes.enabled', false)) {
             $this->loadRoutesFrom(__DIR__ . '/../routes/cms.php');
+        }
+
+        if (class_exists(\Livewire\Livewire::class)) {
+            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.content-index', ContentIndex::class);
+            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.content-form', ContentForm::class);
+            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.category-index', CategoryIndex::class);
+            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.category-form', CategoryForm::class);
         }
 
         view()->composer(['cms::admin.*', 'cms::layouts.*', 'cms::livewire.*'], function ($view) {
