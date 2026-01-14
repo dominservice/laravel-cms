@@ -7,6 +7,7 @@ use Dominservice\LaravelCms\Console\Commands\RedirectConfig;
 use Dominservice\LaravelCms\Http\Middleware\Redirects;
 use Dominservice\LaravelCms\Models\Redirect;
 use Dominservice\LaravelCms\Observers\RedirectObserver;
+use Dominservice\LaravelCms\Support\AdminUi;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Collection;
@@ -18,6 +19,9 @@ class ServiceProvider extends BaseServiceProvider
 
     public function boot(Filesystem $filesystem, Router $router): void
     {
+        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'cms');
+        $this->loadTranslationsFrom(__DIR__ . '/../resources/lang', 'cms');
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 CmsMediaMigrateV4::class,
@@ -47,8 +51,27 @@ class ServiceProvider extends BaseServiceProvider
             __DIR__.'/../database/migrations/add_meta_to_contents_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_meta_to_contents_table'),
         ], 'migrations');
 
+        $this->publishes([
+            __DIR__ . '/../resources/views' => resource_path('views/vendor/cms'),
+        ], 'views');
+
+        $this->publishes([
+            __DIR__ . '/../resources/lang' => lang_path(),
+        ], 'lang');
+
         $router->prependMiddlewareToGroup('web', Redirects::class);
 
+        if (config('cms.admin.enabled', true)) {
+            $this->loadRoutesFrom(__DIR__ . '/../routes/admin.php');
+        }
+
+        if (config('cms.routes.enabled', false)) {
+            $this->loadRoutesFrom(__DIR__ . '/../routes/cms.php');
+        }
+
+        view()->composer(['cms::admin.*', 'cms::layouts.*', 'cms::livewire.*'], function ($view) {
+            $view->with('cmsUi', AdminUi::classes());
+        });
     }
 
     public function register(): void

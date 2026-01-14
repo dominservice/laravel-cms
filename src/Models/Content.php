@@ -70,7 +70,7 @@ class Content extends Model
     protected function casts(): array
     {
         return [
-            'type' => config('cms.types.category'),
+            'type' => config('cms.types.content'),
             'external_url' => 'string',
             'meta'         => 'object',
         ];
