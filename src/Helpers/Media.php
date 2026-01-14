@@ -509,8 +509,7 @@ class Media
 
         $sizes = $sizesCfg['sizes'] ?? [];
         if ($onlySizes !== null) {
-            /** @deprecated od v4 – deleguj do MediaKitBridge::uploadImage() z domyślnymi filtrami. */
-            return \Dominservice\LaravelCms\Media\MediaKitBridge::uploadImage($model, $sourcesBySize, $kind, $replaceExisting ? 'replace' : 'keep', $filters ?? null);
+            $sizes = array_intersect_key($sizes, array_flip($onlySizes));
         }
 
         if (empty($sizes)) {
@@ -581,13 +580,7 @@ class Media
     {
         // Default semantic for videos: files.type = 'video' unless explicitly set
         if ($type === null) {
-            /** @deprecated od v4 – deleguj do MediaKitBridge::uploadVideoRendition() dla każdej pozycji. */
-            foreach ($sourcesBySize as $rendition => $file) {
-                if ($file) {
-                    \Dominservice\LaravelCms\Media\MediaKitBridge::uploadVideoRendition($model, $file, is_string($rendition)?$rendition:'hd'); }
-            }
-
-            return $model;
+            $type = 'video';
         }
 
         // Determine entity and sizes config

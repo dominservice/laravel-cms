@@ -128,7 +128,7 @@ class ContentController extends Controller
     {
         $sectionKey = $request->input('section');
         $sectionConfig = $sectionKey ? CmsSectionResolver::contentSection($sectionKey) : null;
-        $type = $content->type;
+        $type = $this->normalizeTypeValue($content->type);
 
         $service = new ContentSaveService();
         $request->validate($service->validationRules());
@@ -244,7 +244,7 @@ class ContentController extends Controller
             'uuid' => $model->uuid,
             'name' => $translation?->name ?? '-',
             'slug' => $translation?->slug ?? '-',
-            'type' => (string) $model->type,
+            'type' => $this->normalizeTypeValue($model->type) ?: '-',
             'status' => $model->status ? 'Enabled' : 'Disabled',
             'category' => $model->categories()->first()?->name ?? '-',
             'config_key' => $item['config_key'] ?? '-',
@@ -274,6 +274,19 @@ class ContentController extends Controller
         }
 
         return route($this->adminRoute('content.section.create'), ['section' => $sectionKey]);
+    }
+
+    private function normalizeTypeValue(mixed $type): string
+    {
+        if ($type instanceof \BackedEnum) {
+            return $type->value;
+        }
+
+        if (is_string($type)) {
+            return $type;
+        }
+
+        return (string) $type;
     }
 
     private function persistConfig(array $section, Content $content, ?string $configKey, ?string $configHandle, ?array $blockConfig): void

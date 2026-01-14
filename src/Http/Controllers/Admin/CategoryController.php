@@ -106,7 +106,7 @@ class CategoryController extends Controller
                 ->withInput();
         }
 
-        $data['type'] = $request->input('type', $category->type);
+        $data['type'] = $this->normalizeTypeValue($request->input('type', $category->type));
         $data['status'] = $request->boolean('status') ? 1 : 0;
         $data['parent_uuid'] = $request->input('parent_uuid');
 
@@ -175,7 +175,7 @@ class CategoryController extends Controller
             'uuid' => $model->uuid,
             'name' => $translation?->name ?? '-',
             'slug' => $translation?->slug ?? '-',
-            'type' => (string) $model->type,
+            'type' => $this->normalizeTypeValue($model->type) ?: '-',
             'status' => $model->status ? 'Enabled' : 'Disabled',
             'parent_uuid' => (string) ($model->parent_uuid ?? '-'),
             'config_key' => $item['config_key'] ?? '-',
@@ -189,6 +189,19 @@ class CategoryController extends Controller
         $url = route($this->adminRoute('category.edit'), $category);
 
         return $query ? $url . '?' . http_build_query($query) : $url;
+    }
+
+    private function normalizeTypeValue(mixed $type): string
+    {
+        if ($type instanceof \BackedEnum) {
+            return $type->value;
+        }
+
+        if (is_string($type)) {
+            return $type;
+        }
+
+        return (string) $type;
     }
 
     private function adminRoute(string $name): string

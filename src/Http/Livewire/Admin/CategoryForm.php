@@ -46,7 +46,9 @@ class CategoryForm extends Component
             ->all();
 
         $this->configKey = request()->query('config_key');
-        $this->type = $this->category->type ? (string) $this->category->type : ($this->types[0] ?? 'default');
+        $this->type = $this->category->type
+            ? $this->normalizeTypeValue($this->category->type)
+            : ($this->types[0] ?? 'default');
         $this->parent_uuid = $this->category->parent_uuid;
         $this->status = (bool) $this->category->status;
         $this->media_type = $this->category->video_path ? 'video' : 'image';
@@ -124,6 +126,19 @@ class CategoryForm extends Component
         }
 
         return $request;
+    }
+
+    private function normalizeTypeValue(mixed $type): string
+    {
+        if ($type instanceof \BackedEnum) {
+            return $type->value;
+        }
+
+        if (is_string($type)) {
+            return $type;
+        }
+
+        return (string) $type;
     }
 
     private function adminRoute(string $name): string

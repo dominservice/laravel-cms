@@ -69,7 +69,9 @@ class ContentForm extends Component
             ->all();
 
         $this->fixedType = $blockConfig['type'] ?? $sectionConfig['type'] ?? null;
-        $this->type = $this->content->type ? (string) $this->content->type : ($this->fixedType ?: 'page');
+        $this->type = $this->content->type
+            ? $this->normalizeTypeValue($this->content->type)
+            : ($this->fixedType ?: 'page');
         $this->status = (bool) $this->content->status;
         $this->is_nofollow = (bool) $this->content->is_nofollow;
         $this->external_url = $this->content->external_url;
@@ -164,6 +166,19 @@ class ContentForm extends Component
         }
 
         return $request;
+    }
+
+    private function normalizeTypeValue(mixed $type): string
+    {
+        if ($type instanceof \BackedEnum) {
+            return $type->value;
+        }
+
+        if (is_string($type)) {
+            return $type;
+        }
+
+        return (string) $type;
     }
 
     private function persistConfig(array $section, Content $content, ?string $configKey, ?string $configHandle, ?array $blockConfig): void

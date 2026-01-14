@@ -35,7 +35,7 @@ trait DynamicAvatarAccessor
             if (!$disk->exists($name)) {
                 return null;
             }
-            $url = $disk->url($name);
+            $url = $this->normalizeMediaUrl($disk->url($name));
             $ver = null;
             try {
                 $ver = (string) $disk->lastModified($name);
@@ -46,6 +46,42 @@ trait DynamicAvatarAccessor
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    protected function normalizeMediaUrl(string $url): string
+    {
+        if ($url === '') {
+            return $url;
+        }
+
+        if (app()->runningInConsole() || !app()->bound('request')) {
+            return $url;
+        }
+
+        $request = app('request');
+        $base = $request?->getSchemeAndHttpHost();
+        if (!$base) {
+            return $url;
+        }
+
+        $parsed = parse_url($url);
+        if ($parsed === false) {
+            return $url;
+        }
+
+        $path = $parsed['path'] ?? '';
+        $query = isset($parsed['query']) ? ('?' . $parsed['query']) : '';
+        $fragment = isset($parsed['fragment']) ? ('#' . $parsed['fragment']) : '';
+
+        if (isset($parsed['scheme'], $parsed['host'])) {
+            return rtrim($base, '/') . $path . $query . $fragment;
+        }
+
+        if (str_starts_with($url, '/')) {
+            return rtrim($base, '/') . $url;
+        }
+
+        return $url;
     }
 
     /**
