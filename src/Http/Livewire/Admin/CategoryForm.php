@@ -96,7 +96,7 @@ class CategoryForm extends Component
         $data = $prepared['data'];
 
         if (!$prepared['hasName']) {
-            $this->addError('translations', __('cms::messages.name_required_one_language'));
+            $this->addError('translations', __('cms::laravel_cms.name_required_one_language'));
             return;
         }
 
@@ -118,7 +118,7 @@ class CategoryForm extends Component
 
         app(CmsStructuredSyncService::class)->sync();
 
-        session()->flash('status', $this->category->wasRecentlyCreated ? __('cms::messages.category_created') : __('cms::messages.category_updated'));
+        session()->flash('status', $this->category->wasRecentlyCreated ? __('cms::laravel_cms.category_created') : __('cms::laravel_cms.category_updated'));
         $this->redirectRoute($this->adminRoute('category.index'));
     }
 

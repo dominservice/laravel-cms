@@ -8,13 +8,13 @@
                 <div class="{{ $cmsUi['header_row'] ?? '' }}">
                     <div class="{{ $cmsUi['card_title'] ?? 'card-title' }}">{{ $section['label'] }}</div>
                 @if(!empty($section['allow_create']) && !empty($section['create_url']))
-                    <a class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" href="{{ $section['create_url'] }}" wire:navigate>{{ __('cms::messages.new') }}</a>
+                    <a class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" href="{{ $section['create_url'] }}" wire:navigate>{{ __('cms::laravel_cms.new') }}</a>
                 @endif
                 </div>
             </div>
             <div class="{{ $cmsUi['card_body'] ?? 'card-body' }}">
                 @if(empty($section['items']))
-                    <p>{{ __('cms::messages.no_content_configured') }}</p>
+                    <p>{{ __('cms::laravel_cms.no_content_configured') }}</p>
                 @else
                     <table class="{{ $cmsUi['table'] ?? 'table' }}">
                         <thead>
@@ -22,7 +22,7 @@
                             @foreach($section['columns'] as $column)
                                 <th>{{ ucfirst(str_replace('_', ' ', $column)) }}</th>
                             @endforeach
-                            <th>{{ __('cms::messages.actions') }}</th>
+                            <th>{{ __('cms::laravel_cms.actions') }}</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -33,15 +33,15 @@
                                 @endforeach
                                 <td>
                                     @if($item['edit_url'])
-                                        <a class="{{ $cmsUi['button_secondary'] ?? 'btn btn-outline-secondary' }}" href="{{ $item['edit_url'] }}" wire:navigate>{{ __('cms::messages.edit') }}</a>
+                                        <a class="{{ $cmsUi['button_secondary'] ?? 'btn btn-outline-secondary' }}" href="{{ $item['edit_url'] }}" wire:navigate>{{ __('cms::laravel_cms.edit') }}</a>
                                         <button type="button"
                                                 class="{{ $cmsUi['button_link'] ?? 'btn btn-link p-0' }}"
-                                                onclick="confirm('{{ __('cms::messages.confirm_delete_content') }}') || event.stopImmediatePropagation()"
+                                                onclick="confirm('{{ __('cms::laravel_cms.confirm_delete_content') }}') || event.stopImmediatePropagation()"
                                                 wire:click="deleteContent('{{ $item['model']->uuid }}')">
-                                            {{ __('cms::messages.delete') }}
+                                            {{ __('cms::laravel_cms.delete') }}
                                         </button>
                                     @else
-                                        <a class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" href="{{ $item['create_url'] }}" wire:navigate>{{ __('cms::messages.create') }}</a>
+                                        <a class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" href="{{ $item['create_url'] }}" wire:navigate>{{ __('cms::laravel_cms.create') }}</a>
                                     @endif
                                 </td>
                             </tr>
@@ -52,15 +52,15 @@
 
                 @if(!empty($section['blocks']))
                     <div class="mt-4">
-                        <h4>{{ __('cms::messages.blocks') }}</h4>
+                        <h4>{{ __('cms::laravel_cms.blocks') }}</h4>
                         <table class="{{ $cmsUi['table'] ?? 'table' }}">
                             <thead>
                             <tr>
-                                <th>{{ __('cms::messages.block') }}</th>
+                                <th>{{ __('cms::laravel_cms.block') }}</th>
                                 @foreach($section['columns'] as $column)
                                     <th>{{ ucfirst(str_replace('_', ' ', $column)) }}</th>
                                 @endforeach
-                                <th>{{ __('cms::messages.actions') }}</th>
+                                <th>{{ __('cms::laravel_cms.actions') }}</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -72,15 +72,15 @@
                                     @endforeach
                                     <td>
                                         @if($block['edit_url'])
-                                            <a class="{{ $cmsUi['button_secondary'] ?? 'btn btn-outline-secondary' }}" href="{{ $block['edit_url'] }}" wire:navigate>{{ __('cms::messages.edit') }}</a>
+                                            <a class="{{ $cmsUi['button_secondary'] ?? 'btn btn-outline-secondary' }}" href="{{ $block['edit_url'] }}" wire:navigate>{{ __('cms::laravel_cms.edit') }}</a>
                                             <button type="button"
                                                     class="{{ $cmsUi['button_link'] ?? 'btn btn-link p-0' }}"
-                                                    onclick="confirm('{{ __('cms::messages.confirm_delete_block') }}') || event.stopImmediatePropagation()"
+                                                    onclick="confirm('{{ __('cms::laravel_cms.confirm_delete_block') }}') || event.stopImmediatePropagation()"
                                                     wire:click="deleteContent('{{ $block['model']->uuid }}')">
-                                                {{ __('cms::messages.delete') }}
+                                                {{ __('cms::laravel_cms.delete') }}
                                             </button>
                                         @else
-                                            <a class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" href="{{ $block['create_url'] }}" wire:navigate>{{ __('cms::messages.create') }}</a>
+                                            <a class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" href="{{ $block['create_url'] }}" wire:navigate>{{ __('cms::laravel_cms.create') }}</a>
                                         @endif
                                     </td>
                                 </tr>

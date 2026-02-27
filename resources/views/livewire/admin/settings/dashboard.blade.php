@@ -1,76 +1,110 @@
 @php($routePrefix = rtrim(config('cms.admin.route_name_prefix', 'cms.'), '.'))
 @php($routePrefix = $routePrefix === '' ? '' : $routePrefix . '.')
+@php($translatableMetaFields = collect($metaFields)->filter(fn ($field) => is_array($field) && !empty($field['key']) && !empty($field['translatable']))->values()->all())
+@php($plainMetaFields = collect($metaFields)->filter(fn ($field) => is_array($field) && !empty($field['key']) && empty($field['translatable']))->values()->all())
+@php($defaultMetaLocale = in_array(config('app.locale'), $locales, true) ? config('app.locale') : ($locales[0] ?? null))
 
-<div class="content pb-5">
+<div class="content pb-5" @if(!empty($translatableMetaFields) && !empty($locales) && $defaultMetaLocale) x-data="{ activeMetaLocale: '{{ $defaultMetaLocale }}' }" @endif>
     <div class="card mb-4">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <h3 class="card-title mb-0">{{ config('cms.admin.settings.title', 'CMS settings') }}</h3>
+                @if(!empty($translatableMetaFields) && !empty($locales))
+                    <ul class="nav nav-tabs nav-line-tabs mb-0 fs-6" role="tablist">
+                        @foreach($locales as $locale)
+                            <li class="nav-item" role="presentation">
+                                <button
+                                    class="nav-link @if($locale === $defaultMetaLocale) active @endif"
+                                    type="button"
+                                    role="tab"
+                                    @if($defaultMetaLocale)
+                                        @click="activeMetaLocale='{{ $locale }}'"
+                                        :class="{ 'active': activeMetaLocale === '{{ $locale }}' }"
+                                        :aria-selected="activeMetaLocale === '{{ $locale }}' ? 'true' : 'false'"
+                                    @else
+                                        aria-selected="{{ $locale === $defaultMetaLocale ? 'true' : 'false' }}"
+                                    @endif
+                                >
+                                    {{ strtoupper($locale) }}
+                                </button>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
         </div>
         <div class="card-body">
             @if($metaFields === [])
-                <div class="text-muted">{{ __('cms::messages.no_meta_fields') }}</div>
+                <div class="text-muted">{{ __('cms::laravel_cms.no_meta_fields') }}</div>
             @else
-                @foreach($metaFields as $metaField)
-                    @php($fieldKey = (string) ($metaField['key'] ?? ''))
-                    @if($fieldKey === '')
-                        @continue
-                    @endif
-                    @php($fieldType = (string) ($metaField['type'] ?? 'text'))
-                    @php($isTranslatable = (bool) ($metaField['translatable'] ?? false))
-                    @if($isTranslatable)
-                        <div class="row g-3 align-items-start mb-4">
-                            <div class="col-lg-4">
-                                <label class="form-label mb-0">{{ $metaField['label'] ?? $fieldKey }}</label>
-                                <div class="text-muted small">{{ $fieldKey }}</div>
-                            </div>
-                            <div class="col-lg-8">
-                                @foreach($locales as $locale)
-                                    <div class="mb-3">
-                                        <label class="form-label text-uppercase">{{ $locale }}</label>
-                                        @if($fieldType === 'textarea')
-                                            <textarea
-                                                class="form-control"
-                                                rows="3"
-                                                wire:change="saveMetaField(@js($fieldKey), $event.target.value, @js($locale))"
-                                            >{{ (string) ($metaValues[$fieldKey][$locale] ?? '') }}</textarea>
-                                        @else
-                                            <input
-                                                type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
-                                                class="form-control"
-                                                value="{{ (string) ($metaValues[$fieldKey][$locale] ?? '') }}"
-                                                wire:change="saveMetaField(@js($fieldKey), $event.target.value, @js($locale))"
-                                            >
-                                        @endif
+                @if(!empty($translatableMetaFields) && !empty($locales))
+                    <div class="tab-content mb-4">
+                        @foreach($locales as $locale)
+                            <div
+                                id="cms-meta-tab-{{ $locale }}"
+                                class="tab-pane fade @if($locale === $defaultMetaLocale) show active @endif"
+                                role="tabpanel"
+                                @if($defaultMetaLocale)
+                                    x-show="activeMetaLocale === '{{ $locale }}'"
+                                    :class="{ 'show active': activeMetaLocale === '{{ $locale }}' }"
+                                @endif
+                            >
+                                @foreach($translatableMetaFields as $metaField)
+                                    @php($fieldKey = (string) ($metaField['key'] ?? ''))
+                                    @php($fieldType = (string) ($metaField['type'] ?? 'text'))
+                                    <div class="row g-3 align-items-start mb-4">
+                                        <div class="col-lg-4">
+                                            <label class="form-label mb-0">{{ $metaField['label'] ?? $fieldKey }} ({{ strtoupper($locale) }})</label>
+                                            <div class="text-muted small">{{ $fieldKey }}</div>
+                                        </div>
+                                        <div class="col-lg-8">
+                                            @if($fieldType === 'textarea')
+                                                <textarea
+                                                    class="form-control"
+                                                    rows="3"
+                                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value, @js($locale))"
+                                                >{{ (string) ($metaValues[$fieldKey][$locale] ?? '') }}</textarea>
+                                            @else
+                                                <input
+                                                    type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
+                                                    class="form-control"
+                                                    value="{{ (string) ($metaValues[$fieldKey][$locale] ?? '') }}"
+                                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value, @js($locale))"
+                                                >
+                                            @endif
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                @foreach($plainMetaFields as $metaField)
+                    @php($fieldKey = (string) ($metaField['key'] ?? ''))
+                    @php($fieldType = (string) ($metaField['type'] ?? 'text'))
+                    <div class="row g-3 align-items-start mb-4">
+                        <div class="col-lg-4">
+                            <label class="form-label mb-0">{{ $metaField['label'] ?? $fieldKey }}</label>
+                            <div class="text-muted small">{{ $fieldKey }}</div>
                         </div>
-                    @else
-                        <div class="row g-3 align-items-start mb-4">
-                            <div class="col-lg-4">
-                                <label class="form-label mb-0">{{ $metaField['label'] ?? $fieldKey }}</label>
-                                <div class="text-muted small">{{ $fieldKey }}</div>
-                            </div>
-                            <div class="col-lg-8">
-                                @if($fieldType === 'textarea')
-                                    <textarea
-                                        class="form-control"
-                                        rows="3"
-                                        wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
-                                    >{{ (string) ($metaValues[$fieldKey] ?? '') }}</textarea>
-                                @else
-                                    <input
-                                        type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
-                                        class="form-control"
-                                        value="{{ (string) ($metaValues[$fieldKey] ?? '') }}"
-                                        wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
-                                    >
-                                @endif
-                            </div>
+                        <div class="col-lg-8">
+                            @if($fieldType === 'textarea')
+                                <textarea
+                                    class="form-control"
+                                    rows="3"
+                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
+                                >{{ (string) ($metaValues[$fieldKey] ?? '') }}</textarea>
+                            @else
+                                <input
+                                    type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
+                                    class="form-control"
+                                    value="{{ (string) ($metaValues[$fieldKey] ?? '') }}"
+                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
+                                >
+                            @endif
                         </div>
-                    @endif
+                    </div>
                 @endforeach
             @endif
         </div>
@@ -90,12 +124,12 @@
                                 <div class="text-muted small">{{ $section['key'] }}</div>
                             </div>
                             <a href="{{ $section['manage_url'] }}" class="btn btn-sm btn-outline-secondary" wire:navigate>
-                                {{ __('cms::messages.section_list') }}
+                                {{ __('cms::laravel_cms.section_list') }}
                             </a>
                         </div>
 
                         @if(empty($section['rows']))
-                            <div class="text-muted">{{ __('cms::messages.no_assignable_items') }}</div>
+                            <div class="text-muted">{{ __('cms::laravel_cms.no_assignable_items') }}</div>
                         @else
                             <div
                                 class="cms-settings-sortable"
@@ -122,7 +156,7 @@
                                             @if($row['uuid'])
                                                 <div class="text-muted small">{{ $row['uuid'] }}</div>
                                             @endif
-                                            <div>{{ $row['entity_name'] ?: __('cms::messages.not_assigned') }}</div>
+                                            <div>{{ $row['entity_name'] ?: __('cms::laravel_cms.not_assigned') }}</div>
                                         </div>
 
                                         <div class="col-lg-4 text-lg-end">
@@ -139,17 +173,17 @@
                                                 class="btn btn-sm btn-outline-primary"
                                                 wire:click="openUuidPickerFromPayload('{{ $pickerPayload }}')"
                                             >
-                                                {{ __('cms::messages.change_uuid') }}
+                                                {{ __('cms::laravel_cms.change_uuid') }}
                                             </button>
 
                                             @if($row['create_url'])
-                                                <a href="{{ $row['create_url'] }}" class="btn btn-sm btn-success" wire:navigate>{{ __('cms::messages.new') }}</a>
+                                                <a href="{{ $row['create_url'] }}" class="btn btn-sm btn-success" wire:navigate>{{ __('cms::laravel_cms.new') }}</a>
                                             @endif
                                             @if($row['edit_url'])
-                                                <a href="{{ $row['edit_url'] }}" class="btn btn-sm btn-info" wire:navigate>{{ __('cms::messages.edit') }}</a>
+                                                <a href="{{ $row['edit_url'] }}" class="btn btn-sm btn-info" wire:navigate>{{ __('cms::laravel_cms.edit') }}</a>
                                             @endif
                                             @if($row['list_url'])
-                                                <a href="{{ $row['list_url'] }}" class="btn btn-sm btn-secondary" wire:navigate>{{ __('cms::messages.items') }}</a>
+                                                <a href="{{ $row['list_url'] }}" class="btn btn-sm btn-secondary" wire:navigate>{{ __('cms::laravel_cms.items') }}</a>
                                             @endif
                                         </div>
 
@@ -189,7 +223,7 @@
                         @endif
                     </div>
                 @empty
-                    <div class="text-muted">{{ __('cms::messages.no_sections_configured') }}</div>
+                    <div class="text-muted">{{ __('cms::laravel_cms.no_sections_configured') }}</div>
                 @endforelse
             </div>
         </div>
@@ -199,7 +233,7 @@
         <div class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex align-items-center justify-content-center" style="z-index: 1080;">
             <div class="card shadow" style="width: min(920px, 95vw); max-height: 90vh;">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">{{ __('cms::messages.choose_uuid') }}</h4>
+                    <h4 class="mb-0">{{ __('cms::laravel_cms.choose_uuid') }}</h4>
                     <button type="button" class="btn btn-sm btn-light" wire:click="closeUuidPicker">×</button>
                 </div>
                 <div class="card-body">
@@ -208,7 +242,7 @@
                             type="text"
                             class="form-control"
                             wire:model.live.debounce.250ms="pickerSearch"
-                            placeholder="{{ __('cms::messages.search_by_name_slug_uuid') }}"
+                            placeholder="{{ __('cms::laravel_cms.search_by_name_slug_uuid') }}"
                         >
                     </div>
 
@@ -216,9 +250,9 @@
                         <table class="table table-striped align-middle">
                             <thead>
                                 <tr>
-                                    <th>{{ __('cms::messages.name') }}</th>
-                                    <th>{{ __('cms::messages.uuid') }}</th>
-                                    <th class="text-end">{{ __('cms::messages.action') }}</th>
+                                    <th>{{ __('cms::laravel_cms.name') }}</th>
+                                    <th>{{ __('cms::laravel_cms.uuid') }}</th>
+                                    <th class="text-end">{{ __('cms::laravel_cms.action') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -232,13 +266,13 @@
                                                 class="btn btn-sm btn-primary"
                                                 wire:click='selectPickerUuid(@js($item["uuid"]))'
                                             >
-                                                {{ __('cms::messages.select') }}
+                                                {{ __('cms::laravel_cms.select') }}
                                             </button>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="3" class="text-muted">{{ __('cms::messages.no_results') }}</td>
+                                        <td colspan="3" class="text-muted">{{ __('cms::laravel_cms.no_results') }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>

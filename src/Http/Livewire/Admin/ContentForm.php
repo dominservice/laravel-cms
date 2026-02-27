@@ -109,7 +109,7 @@ class ContentForm extends Component
         $data = $prepared['data'];
 
         if (!$prepared['hasName']) {
-            $this->addError('translations', __('cms::messages.name_required_one_language'));
+            $this->addError('translations', __('cms::laravel_cms.name_required_one_language'));
             return;
         }
 
@@ -139,7 +139,7 @@ class ContentForm extends Component
 
         app(CmsStructuredSyncService::class)->sync();
 
-        session()->flash('status', $this->content->wasRecentlyCreated ? __('cms::messages.content_created') : __('cms::messages.content_updated'));
+        session()->flash('status', $this->content->wasRecentlyCreated ? __('cms::laravel_cms.content_created') : __('cms::laravel_cms.content_updated'));
         $this->redirectRoute($this->adminRoute('content.index'));
     }
 

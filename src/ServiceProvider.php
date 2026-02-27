@@ -62,7 +62,7 @@ class ServiceProvider extends BaseServiceProvider
         ], 'views');
 
         $this->publishes([
-            __DIR__ . '/../resources/lang' => lang_path(),
+            __DIR__ . '/../resources/lang' => lang_path('vendor/cms'),
         ], 'lang');
 
         $router->prependMiddlewareToGroup('web', Redirects::class);

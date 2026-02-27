@@ -46,7 +46,7 @@ class SettingsDashboard extends Component
             $this->metaValues[$key] = $value;
         }
 
-        session()->flash('status', __('cms::messages.settings_saved'));
+        session()->flash('status', __('cms::laravel_cms.settings_saved'));
     }
 
     public function updateGroupField(string $groupKey, string $handle, string $field, mixed $value, string $type = 'boolean'): void
@@ -516,7 +516,7 @@ class SettingsDashboard extends Component
             return ucfirst(str_replace('_', ' ', $handle));
         }
 
-        return (string) ($sectionConfig['label'] ?? $sectionConfig['key'] ?? __('cms::messages.item'));
+        return (string) ($sectionConfig['label'] ?? $sectionConfig['key'] ?? __('cms::laravel_cms.item'));
     }
 
     private function resolveModel(string $source, string $uuid): mixed
@@ -586,7 +586,7 @@ class SettingsDashboard extends Component
     {
         app(CmsStructuredSyncService::class)->sync();
         $this->loadPanels();
-        session()->flash('status', __('cms::messages.settings_saved'));
+        session()->flash('status', __('cms::laravel_cms.settings_saved'));
     }
 
     private function adminRoute(string $name): string

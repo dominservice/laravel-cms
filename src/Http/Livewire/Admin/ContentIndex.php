@@ -29,7 +29,7 @@ class ContentIndex extends Component
         if ($content) {
             $content->delete();
             app(CmsStructuredSyncService::class)->sync();
-            session()->flash('status', __('cms::messages.content_deleted'));
+            session()->flash('status', __('cms::laravel_cms.content_deleted'));
         }
 
         $this->loadSections();
@@ -59,7 +59,7 @@ class ContentIndex extends Component
 
             $sections[] = [
                 'key' => 'category-' . $this->category->uuid,
-                'label' => __('cms::messages.category_with_name', ['name' => ($this->category->translate($locale)?->name ?? $this->category->uuid)]),
+                'label' => __('cms::laravel_cms.category_with_name', ['name' => ($this->category->translate($locale)?->name ?? $this->category->uuid)]),
                 'columns' => config('cms.admin.content.default_columns', []),
                 'items' => $this->mapContentItems($items, ['key' => 'category'], $locale),
                 'blocks' => [],
@@ -138,7 +138,7 @@ class ContentIndex extends Component
             'name' => $translation?->name ?? '-',
             'slug' => $translation?->slug ?? '-',
             'type' => $this->normalizeTypeValue($model->type),
-            'status' => $model->status ? __('cms::messages.enabled') : __('cms::messages.disabled'),
+            'status' => $model->status ? __('cms::laravel_cms.enabled') : __('cms::laravel_cms.disabled'),
             'category' => $model->categories()->first()?->name ?? '-',
             'config_key' => $item['config_key'] ?? '-',
             default => (string) ($model->{$column} ?? '-'),
