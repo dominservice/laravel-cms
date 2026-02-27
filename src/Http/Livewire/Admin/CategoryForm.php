@@ -4,6 +4,7 @@ namespace Dominservice\LaravelCms\Http\Livewire\Admin;
 
 use Dominservice\LaravelCms\Models\Category;
 use Dominservice\LaravelCms\Services\CategorySaveService;
+use Dominservice\LaravelCms\Services\CmsStructuredSyncService;
 use Dominservice\LaravelCms\Support\CmsConfigStore;
 use Dominservice\LaravelCms\Support\CmsLocales;
 use Dominservice\LaravelCms\Support\CmsTypeResolver;
@@ -114,6 +115,8 @@ class CategoryForm extends Component
         if ($sectionConfig) {
             $this->persistConfig($sectionConfig, $this->category, $this->configKey, $this->configHandle);
         }
+
+        app(CmsStructuredSyncService::class)->sync();
 
         session()->flash('status', $this->category->wasRecentlyCreated ? 'Category created.' : 'Category updated.');
         $this->redirectRoute($this->adminRoute('category.index'));

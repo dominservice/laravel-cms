@@ -125,7 +125,14 @@ class CmsSectionResolver
         if (!empty($section['group_key'])) {
             $groupKey = $section['group_key'];
             $itemKey = $section['item_key'] ?? ($modelClass === Category::class ? 'category_uuid' : 'page_uuid');
+            $orderKey = (string) ($section['order_key'] ?? 'order');
             $configItems = (array) config($groupKey, []);
+            uasort($configItems, static function ($left, $right) use ($orderKey): int {
+                $leftOrder = is_array($left) ? (int) ($left[$orderKey] ?? 0) : 0;
+                $rightOrder = is_array($right) ? (int) ($right[$orderKey] ?? 0) : 0;
+
+                return $leftOrder <=> $rightOrder;
+            });
 
             foreach ($configItems as $handle => $data) {
                 $configKey = $groupKey . '.' . $handle . '.' . $itemKey;
@@ -199,18 +206,20 @@ class CmsSectionResolver
         $defaultPages = (array) config('cms.default_pages', []);
 
         foreach ($defaultPages as $key => $data) {
-            if (in_array($key, ['other', 'business'], true) && is_array($data)) {
+            if (!is_array($data)) {
+                continue;
+            }
+
+            if (self::isGroupLikeSection($data)) {
+                $itemKey = self::detectGroupItemKey($data, 'page_uuid');
                 $sections[$key] = [
                     'label' => self::labelFromKey($key),
                     'type' => 'page',
                     'group_key' => 'cms.default_pages.' . $key,
-                    'item_key' => 'page_uuid',
+                    'item_key' => $itemKey,
                     'allow_create' => true,
+                    'order_key' => 'order',
                 ];
-                continue;
-            }
-
-            if (!is_array($data)) {
                 continue;
             }
 
@@ -248,5 +257,54 @@ class CmsSectionResolver
     private static function labelFromKey(string $key): string
     {
         return ucwords(str_replace('_', ' ', $key));
+    }
+
+    /**
+     * @param array<string,mixed> $data
+     */
+    private static function isGroupLikeSection(array $data): bool
+    {
+        if (array_key_exists('page_uuid', $data) || array_key_exists('blocks', $data)) {
+            return false;
+        }
+
+        foreach ($data as $value) {
+            if (!is_array($value)) {
+                return false;
+            }
+
+            if (
+                !array_key_exists('page_uuid', $value)
+                && !array_key_exists('category_uuid', $value)
+                && !array_key_exists('uuid', $value)
+            ) {
+                return false;
+            }
+        }
+
+        return $data !== [];
+    }
+
+    /**
+     * @param array<string,mixed> $data
+     */
+    private static function detectGroupItemKey(array $data, string $fallback): string
+    {
+        foreach ($data as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            if (array_key_exists('page_uuid', $item)) {
+                return 'page_uuid';
+            }
+            if (array_key_exists('category_uuid', $item)) {
+                return 'category_uuid';
+            }
+            if (array_key_exists('uuid', $item)) {
+                return 'uuid';
+            }
+        }
+
+        return $fallback;
     }
 }

@@ -151,6 +151,57 @@ The package ships with a configurable CMS admin panel for managing content, bloc
   - `component`: render inside `<x-dynamic-component>` (set `cms.admin.layout.component`).
 - If you use `extends`/`component`, include `@livewireStyles` in `<head>` and `@livewireScripts` before `</body>` in your layout.
 
+### Settings Dashboard (config-driven)
+The admin dashboard now supports a dedicated configurable settings screen (`cms.admin.settings.*`):
+
+- Route: `cms.admin.settings.route` (default `settings`)
+- Dashboard cards/panels: `cms.admin.settings.panels`
+- Home/meta fields: `cms.admin.settings.meta_fields`
+- UUID picker scoped by entity type (content/category)
+- Reorder for `group_key` sections with drag-and-drop (order key configurable)
+- Per-row additional switches/fields from section config (`settings_fields`) or inferred from group item data
+- Automatic structure sync after changes via `cms.admin.settings.sync`
+- Public-menu metadata can be configured as row fields and synced automatically (for example: dropdown flags, parent keys, groups, icons)
+
+`sync.indexes` are fully configurable and do not require fixed names in code. You can define:
+
+- `group_key` + `item_key` + `target_key` for list mappings
+- `single_key` + `single_type` + `target_key` for single assignments
+- `menu_keys` mapping source flags to target flags
+- `field_mappings` for custom target/source field mapping
+- `passthrough_fields` for 1:1 field copy from source row to target row
+- optional `children` sync (`relation`, nested `target_subkey`, or `flatten`)
+
+Example:
+
+```php
+'admin' => [
+  'settings' => [
+    'sync' => [
+      'enabled' => true,
+      'indexes' => [
+        [
+          'group_key' => 'cms.default_pages.other',
+          'item_key' => 'page_uuid',
+          'target_key' => 'cms.pages',
+          'order_key' => 'order',
+          'entity_switch_key' => 'category',
+          'menu_keys' => [
+            'top_menu' => 'top_menu',
+            'footer_menu' => 'footer_menu',
+          ],
+          'children' => [
+            'enabled' => true,
+            'relation' => 'contents',
+            'target_subkey' => 'pages',
+          ],
+        ],
+      ],
+    ],
+  ],
+],
+```
+
 ## Routes & localized slugs
 Routes are optional and fully configured in `cms.routes.*`.
 

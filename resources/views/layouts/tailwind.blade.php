@@ -15,6 +15,9 @@
         <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
             <a class="text-lg font-semibold" href="{{ route($routePrefix . 'content.index') }}">CMS</a>
             <div class="flex gap-4 text-sm font-medium">
+                @if(config('cms.admin.settings.enabled', true))
+                    <a class="text-slate-600 hover:text-slate-900" href="{{ route($routePrefix . 'settings') }}">Settings</a>
+                @endif
                 <a class="text-slate-600 hover:text-slate-900" href="{{ route($routePrefix . 'content.index') }}">Content</a>
                 <a class="text-slate-600 hover:text-slate-900" href="{{ route($routePrefix . 'category.index') }}">Categories</a>
             </div>

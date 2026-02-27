@@ -4,6 +4,7 @@ namespace Dominservice\LaravelCms\Http\Livewire\Admin;
 
 use Dominservice\LaravelCms\Models\Category;
 use Dominservice\LaravelCms\Models\Content;
+use Dominservice\LaravelCms\Services\CmsStructuredSyncService;
 use Dominservice\LaravelCms\Support\CmsLocales;
 use Dominservice\LaravelCms\Support\CmsSectionResolver;
 use Illuminate\View\View;
@@ -13,10 +14,12 @@ class ContentIndex extends Component
 {
     public array $sections = [];
     public ?Category $category = null;
+    public ?string $onlySectionKey = null;
 
     public function mount(?Category $category = null): void
     {
         $this->category = $category;
+        $this->onlySectionKey = request()->query('section');
         $this->loadSections();
     }
 
@@ -25,6 +28,7 @@ class ContentIndex extends Component
         $content = Content::find($uuid);
         if ($content) {
             $content->delete();
+            app(CmsStructuredSyncService::class)->sync();
             session()->flash('status', 'Content deleted.');
         }
 
@@ -67,6 +71,9 @@ class ContentIndex extends Component
         }
 
         foreach (CmsSectionResolver::contentSections() as $section) {
+            if ($this->onlySectionKey && ($section['key'] ?? null) !== $this->onlySectionKey) {
+                continue;
+            }
             $items = CmsSectionResolver::itemsForContentSection($section);
             $blocks = CmsSectionResolver::blocksForContentSection($section);
 

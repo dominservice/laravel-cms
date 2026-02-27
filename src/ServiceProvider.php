@@ -12,6 +12,7 @@ use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryForm;
 use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryIndex;
 use Dominservice\LaravelCms\Http\Livewire\Admin\ContentForm;
 use Dominservice\LaravelCms\Http\Livewire\Admin\ContentIndex;
+use Dominservice\LaravelCms\Http\Livewire\Admin\SettingsDashboard;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Collection;
@@ -79,6 +80,7 @@ class ServiceProvider extends BaseServiceProvider
             \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.content-form', ContentForm::class);
             \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.category-index', CategoryIndex::class);
             \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.category-form', CategoryForm::class);
+            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.settings-dashboard', SettingsDashboard::class);
         }
 
         view()->composer(['cms::admin.*', 'cms::layouts.*', 'cms::livewire.*'], function ($view) {

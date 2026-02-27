@@ -4,6 +4,7 @@ use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryForm;
 use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryIndex;
 use Dominservice\LaravelCms\Http\Livewire\Admin\ContentForm;
 use Dominservice\LaravelCms\Http\Livewire\Admin\ContentIndex;
+use Dominservice\LaravelCms\Http\Livewire\Admin\SettingsDashboard;
 use Illuminate\Support\Facades\Route;
 
 if (!config('cms.admin.enabled', true)) {
@@ -20,10 +21,23 @@ Route::group([
     'as' => $namePrefix,
     'middleware' => $middleware,
 ], function () {
+    if (config('cms.admin.settings.enabled', true)) {
+        $settingsRoute = (string) config('cms.admin.settings.route', 'settings');
+        Route::get($settingsRoute, SettingsDashboard::class)->name('settings');
+    }
+
     Route::get('/', function () {
         $prefix = (string) config('cms.admin.route_name_prefix', 'cms.');
         $prefix = $prefix === '' ? '' : rtrim($prefix, '.') . '.';
-        return redirect()->route($prefix . 'content.index');
+        $landing = (string) config('cms.admin.landing', 'settings');
+
+        return match ($landing) {
+            'settings' => config('cms.admin.settings.enabled', true)
+                ? redirect()->route($prefix . 'settings')
+                : redirect()->route($prefix . 'content.index'),
+            'category', 'category.index' => redirect()->route($prefix . 'category.index'),
+            default => redirect()->route($prefix . 'content.index'),
+        };
     })->name('index');
 
     Route::get('content', ContentIndex::class)->name('content.index');

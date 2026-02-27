@@ -15,6 +15,9 @@
         <div class="container">
             <a class="navbar-brand" href="{{ route($routePrefix . 'content.index') }}">CMS</a>
             <div class="navbar-nav">
+                @if(config('cms.admin.settings.enabled', true))
+                    <a class="nav-link" href="{{ route($routePrefix . 'settings') }}">Settings</a>
+                @endif
                 <a class="nav-link" href="{{ route($routePrefix . 'content.index') }}">Content</a>
                 <a class="nav-link" href="{{ route($routePrefix . 'category.index') }}">Categories</a>
             </div>

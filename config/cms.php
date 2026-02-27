@@ -245,6 +245,8 @@ return [
         'enabled' => true,
         'prefix' => 'cms',
         'route_name_prefix' => 'cms.',
+        // settings|content.index|category.index
+        'landing' => 'settings',
         'middleware' => ['web', 'auth'],
         'layout' => [
             // package|extends|component
@@ -311,6 +313,71 @@ return [
                     'tab_content' => '',
                     'tab_pane' => '',
                 ],
+            ],
+        ],
+        'settings' => [
+            'enabled' => true,
+            'route' => 'settings',
+            'title' => 'CMS settings',
+            'meta_fields' => [
+                // Example:
+                // [
+                //     'label' => 'Home meta title',
+                //     'key' => 'cms.default_pages.home.meta_title',
+                //     'type' => 'text',
+                // ],
+            ],
+            // Settings dashboard cards. "source" controls model type and destination listing.
+            // source: content|category
+            'panels' => [
+                [
+                    'key' => 'content',
+                    'label' => 'Content',
+                    'source' => 'content',
+                    // Empty list means: resolve all configured sections for the source.
+                    'sections' => [],
+                ],
+                [
+                    'key' => 'categories',
+                    'label' => 'Categories',
+                    'source' => 'category',
+                    'sections' => [],
+                ],
+            ],
+            'uuid_picker' => [
+                'limit' => 25,
+            ],
+            'sync' => [
+                'enabled' => true,
+                // Every index is fully configurable: no fixed cache key names in code.
+                'indexes' => [
+                    // Example:
+                    // [
+                    //     'group_key' => 'cms.default_pages.other',
+                    //     'item_key' => 'page_uuid',
+                    //     'target_key' => 'cms.pages',
+                    //     'order_key' => 'order',
+                    //     'entity_switch_key' => 'category',
+                    //     'menu_keys' => [
+                    //         'top_menu' => 'top_menu',
+                    //         'footer_menu' => 'footer_menu',
+                    //     ],
+                    //     // Optional additional mappings (for dropdown/group/menu builder metadata)
+                    //     'field_mappings' => [
+                    //         'dropdown' => 'is_dropdown',
+                    //         'dropdown_parent' => 'dropdown_parent',
+                    //     ],
+                    //     // Or pass field names 1:1
+                    //     'passthrough_fields' => ['group', 'icon'],
+                    //     'children' => [
+                    //         'enabled' => true,
+                    //         'target_subkey' => 'pages',
+                    //         'relation' => 'contents',
+                    //         'order_key' => 'order',
+                    //     ],
+                    // ],
+                ],
+                'rebuild_routes' => false,
             ],
         ],
         'content' => [

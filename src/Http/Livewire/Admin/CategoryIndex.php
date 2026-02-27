@@ -3,6 +3,7 @@
 namespace Dominservice\LaravelCms\Http\Livewire\Admin;
 
 use Dominservice\LaravelCms\Models\Category;
+use Dominservice\LaravelCms\Services\CmsStructuredSyncService;
 use Dominservice\LaravelCms\Support\CmsLocales;
 use Dominservice\LaravelCms\Support\CmsSectionResolver;
 use Illuminate\View\View;
@@ -11,9 +12,11 @@ use Livewire\Component;
 class CategoryIndex extends Component
 {
     public array $sections = [];
+    public ?string $onlySectionKey = null;
 
     public function mount(): void
     {
+        $this->onlySectionKey = request()->query('section');
         $this->loadSections();
     }
 
@@ -22,6 +25,7 @@ class CategoryIndex extends Component
         $category = Category::find($uuid);
         if ($category) {
             $category->delete();
+            app(CmsStructuredSyncService::class)->sync();
             session()->flash('status', 'Category deleted.');
         }
 
@@ -41,6 +45,9 @@ class CategoryIndex extends Component
         $sections = [];
 
         foreach (CmsSectionResolver::categorySections() as $section) {
+            if ($this->onlySectionKey && ($section['key'] ?? null) !== $this->onlySectionKey) {
+                continue;
+            }
             $items = CmsSectionResolver::itemsForCategorySection($section);
             $sections[] = [
                 'key' => $section['key'],

@@ -5,6 +5,7 @@ namespace Dominservice\LaravelCms\Http\Livewire\Admin;
 use Dominservice\LaravelCms\Models\Category;
 use Dominservice\LaravelCms\Models\Content;
 use Dominservice\LaravelCms\Services\ContentSaveService;
+use Dominservice\LaravelCms\Services\CmsStructuredSyncService;
 use Dominservice\LaravelCms\Support\CmsConfigStore;
 use Dominservice\LaravelCms\Support\CmsLocales;
 use Dominservice\LaravelCms\Support\CmsSectionResolver;
@@ -135,6 +136,8 @@ class ContentForm extends Component
         if ($sectionConfig) {
             $this->persistConfig($sectionConfig, $this->content, $this->configKey, $this->configHandle, $blockConfig);
         }
+
+        app(CmsStructuredSyncService::class)->sync();
 
         session()->flash('status', $this->content->wasRecentlyCreated ? 'Content created.' : 'Content updated.');
         $this->redirectRoute($this->adminRoute('content.index'));
