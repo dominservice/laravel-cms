@@ -325,6 +325,7 @@ return [
                 //     'label' => 'Home meta title',
                 //     'key' => 'cms.default_pages.home.meta_title',
                 //     'type' => 'text',
+                //     'translatable' => true,
                 // ],
             ],
             // Settings dashboard cards. "source" controls model type and destination listing.

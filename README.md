@@ -157,6 +157,7 @@ The admin dashboard now supports a dedicated configurable settings screen (`cms.
 - Route: `cms.admin.settings.route` (default `settings`)
 - Dashboard cards/panels: `cms.admin.settings.panels`
 - Home/meta fields: `cms.admin.settings.meta_fields`
+- Meta fields can be multilingual via `translatable => true` (saved under `key.locale`)
 - UUID picker scoped by entity type (content/category)
 - Reorder for `group_key` sections with drag-and-drop (order key configurable)
 - Per-row additional switches/fields from section config (`settings_fields`) or inferred from group item data

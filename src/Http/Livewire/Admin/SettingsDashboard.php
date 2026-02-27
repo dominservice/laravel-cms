@@ -12,6 +12,7 @@ use Livewire\Component;
 
 class SettingsDashboard extends Component
 {
+    public array $locales = [];
     public array $metaFields = [];
     public array $metaValues = [];
     public array $panels = [];
@@ -28,15 +29,30 @@ class SettingsDashboard extends Component
 
     public function mount(): void
     {
+        $this->locales = CmsLocales::all();
         $this->loadMetaFields();
         $this->loadPanels();
     }
 
-    public function saveMetaField(string $key, mixed $value): void
+    public function boot(): void
     {
-        CmsConfigStore::set($key, $value);
-        $this->metaValues[$key] = $value;
-        session()->flash('status', __('Settings saved.'));
+        if (app()->bound('debugbar')) {
+            app('debugbar')->disable();
+        }
+    }
+
+    public function saveMetaField(string $key, mixed $value, ?string $locale = null): void
+    {
+        $targetKey = $locale ? ($key . '.' . $locale) : $key;
+        CmsConfigStore::set($targetKey, $value);
+
+        if ($locale) {
+            $this->metaValues[$key][$locale] = $value;
+        } else {
+            $this->metaValues[$key] = $value;
+        }
+
+        session()->flash('status', __('cms::messages.settings_saved'));
     }
 
     public function updateGroupField(string $groupKey, string $handle, string $field, mixed $value, string $type = 'boolean'): void
@@ -84,6 +100,23 @@ class SettingsDashboard extends Component
         $this->pickerItemKey = $itemKey;
         $this->pickerSearch = '';
         $this->pickerResults = $this->searchPickerResults();
+    }
+
+    public function openUuidPickerFromPayload(string $payload): void
+    {
+        $decoded = json_decode(base64_decode($payload, true) ?: '', true);
+        if (!is_array($decoded)) {
+            return;
+        }
+
+        $this->openUuidPicker(
+            (string) ($decoded['source'] ?? 'content'),
+            (string) ($decoded['section_key'] ?? ''),
+            isset($decoded['config_key']) && $decoded['config_key'] !== '' ? (string) $decoded['config_key'] : null,
+            isset($decoded['group_key']) && $decoded['group_key'] !== '' ? (string) $decoded['group_key'] : null,
+            isset($decoded['handle']) && $decoded['handle'] !== '' ? (string) $decoded['handle'] : null,
+            (string) ($decoded['item_key'] ?? 'page_uuid')
+        );
     }
 
     public function closeUuidPicker(): void
@@ -136,6 +169,22 @@ class SettingsDashboard extends Component
                 continue;
             }
             $key = (string) $field['key'];
+
+            if (!empty($field['translatable'])) {
+                $this->metaValues[$key] = [];
+                $base = config($key);
+                foreach ($this->locales as $locale) {
+                    $localizedValue = config($key . '.' . $locale);
+                    if ($localizedValue === null && is_array($base) && array_key_exists($locale, $base)) {
+                        $localizedValue = $base[$locale];
+                    } elseif ($localizedValue === null && !is_array($base) && $locale === CmsLocales::default()) {
+                        $localizedValue = $base;
+                    }
+                    $this->metaValues[$key][$locale] = (string) ($localizedValue ?? '');
+                }
+                continue;
+            }
+
             $this->metaValues[$key] = config($key);
         }
     }
@@ -473,7 +522,7 @@ class SettingsDashboard extends Component
             return ucfirst(str_replace('_', ' ', $handle));
         }
 
-        return (string) ($sectionConfig['label'] ?? $sectionConfig['key'] ?? __('Item'));
+        return (string) ($sectionConfig['label'] ?? $sectionConfig['key'] ?? __('cms::messages.item'));
     }
 
     private function resolveModel(string $source, string $uuid): mixed
@@ -543,7 +592,7 @@ class SettingsDashboard extends Component
     {
         app(CmsStructuredSyncService::class)->sync();
         $this->loadPanels();
-        session()->flash('status', __('Settings saved.'));
+        session()->flash('status', __('cms::messages.settings_saved'));
     }
 
     private function adminRoute(string $name): string
@@ -552,4 +601,3 @@ class SettingsDashboard extends Component
         return $prefix === '' ? $name : $prefix . '.' . $name;
     }
 }
-

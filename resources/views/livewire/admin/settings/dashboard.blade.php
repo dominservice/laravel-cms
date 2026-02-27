@@ -10,7 +10,7 @@
         </div>
         <div class="card-body">
             @if($metaFields === [])
-                <div class="text-muted">{{ __('No meta fields configured.') }}</div>
+                <div class="text-muted">{{ __('cms::messages.no_meta_fields') }}</div>
             @else
                 @foreach($metaFields as $metaField)
                     @php($fieldKey = (string) ($metaField['key'] ?? ''))
@@ -18,28 +18,59 @@
                         @continue
                     @endif
                     @php($fieldType = (string) ($metaField['type'] ?? 'text'))
-                    <div class="row g-3 align-items-start mb-4">
-                        <div class="col-lg-4">
-                            <label class="form-label mb-0">{{ $metaField['label'] ?? $fieldKey }}</label>
-                            <div class="text-muted small">{{ $fieldKey }}</div>
+                    @php($isTranslatable = (bool) ($metaField['translatable'] ?? false))
+                    @if($isTranslatable)
+                        <div class="row g-3 align-items-start mb-4">
+                            <div class="col-lg-4">
+                                <label class="form-label mb-0">{{ $metaField['label'] ?? $fieldKey }}</label>
+                                <div class="text-muted small">{{ $fieldKey }}</div>
+                            </div>
+                            <div class="col-lg-8">
+                                @foreach($locales as $locale)
+                                    <div class="mb-3">
+                                        <label class="form-label text-uppercase">{{ $locale }}</label>
+                                        @if($fieldType === 'textarea')
+                                            <textarea
+                                                class="form-control"
+                                                rows="3"
+                                                wire:change="saveMetaField(@js($fieldKey), $event.target.value, @js($locale))"
+                                            >{{ (string) ($metaValues[$fieldKey][$locale] ?? '') }}</textarea>
+                                        @else
+                                            <input
+                                                type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
+                                                class="form-control"
+                                                value="{{ (string) ($metaValues[$fieldKey][$locale] ?? '') }}"
+                                                wire:change="saveMetaField(@js($fieldKey), $event.target.value, @js($locale))"
+                                            >
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
-                        <div class="col-lg-8">
-                            @if($fieldType === 'textarea')
-                                <textarea
-                                    class="form-control"
-                                    rows="3"
-                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
-                                >{{ (string) ($metaValues[$fieldKey] ?? '') }}</textarea>
-                            @else
-                                <input
-                                    type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
-                                    class="form-control"
-                                    value="{{ (string) ($metaValues[$fieldKey] ?? '') }}"
-                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
-                                >
-                            @endif
+                    @else
+                        <div class="row g-3 align-items-start mb-4">
+                            <div class="col-lg-4">
+                                <label class="form-label mb-0">{{ $metaField['label'] ?? $fieldKey }}</label>
+                                <div class="text-muted small">{{ $fieldKey }}</div>
+                            </div>
+                            <div class="col-lg-8">
+                                @if($fieldType === 'textarea')
+                                    <textarea
+                                        class="form-control"
+                                        rows="3"
+                                        wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
+                                    >{{ (string) ($metaValues[$fieldKey] ?? '') }}</textarea>
+                                @else
+                                    <input
+                                        type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
+                                        class="form-control"
+                                        value="{{ (string) ($metaValues[$fieldKey] ?? '') }}"
+                                        wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
+                                    >
+                                @endif
+                            </div>
                         </div>
-                    </div>
+                    @endif
                 @endforeach
             @endif
         </div>
@@ -59,12 +90,12 @@
                                 <div class="text-muted small">{{ $section['key'] }}</div>
                             </div>
                             <a href="{{ $section['manage_url'] }}" class="btn btn-sm btn-outline-secondary" wire:navigate>
-                                {{ __('Section list') }}
+                                {{ __('cms::messages.section_list') }}
                             </a>
                         </div>
 
                         @if(empty($section['rows']))
-                            <div class="text-muted">{{ __('No assignable items in this section.') }}</div>
+                            <div class="text-muted">{{ __('cms::messages.no_assignable_items') }}</div>
                         @else
                             <div
                                 class="cms-settings-sortable"
@@ -91,26 +122,34 @@
                                             @if($row['uuid'])
                                                 <div class="text-muted small">{{ $row['uuid'] }}</div>
                                             @endif
-                                            <div>{{ $row['entity_name'] ?: __('Not assigned') }}</div>
+                                            <div>{{ $row['entity_name'] ?: __('cms::messages.not_assigned') }}</div>
                                         </div>
 
                                         <div class="col-lg-4 text-lg-end">
+                                            @php($pickerPayload = base64_encode(json_encode([
+                                                'source' => $row['source'],
+                                                'section_key' => $row['section_key'],
+                                                'config_key' => $row['config_key'],
+                                                'group_key' => $row['group_key'],
+                                                'handle' => $row['handle'],
+                                                'item_key' => $row['item_key'],
+                                            ], JSON_UNESCAPED_UNICODE) ?: '{}'))
                                             <button
                                                 type="button"
                                                 class="btn btn-sm btn-outline-primary"
-                                                wire:click='openUuidPicker(@js($row["source"]), @js($row["section_key"]), @js($row["config_key"]), @js($row["group_key"]), @js($row["handle"]), @js($row["item_key"]))'
+                                                wire:click="openUuidPickerFromPayload('{{ $pickerPayload }}')"
                                             >
-                                                {{ __('Change UUID') }}
+                                                {{ __('cms::messages.change_uuid') }}
                                             </button>
 
                                             @if($row['create_url'])
-                                                <a href="{{ $row['create_url'] }}" class="btn btn-sm btn-success" wire:navigate>{{ __('New') }}</a>
+                                                <a href="{{ $row['create_url'] }}" class="btn btn-sm btn-success" wire:navigate>{{ __('cms::messages.new') }}</a>
                                             @endif
                                             @if($row['edit_url'])
-                                                <a href="{{ $row['edit_url'] }}" class="btn btn-sm btn-info" wire:navigate>{{ __('Edit') }}</a>
+                                                <a href="{{ $row['edit_url'] }}" class="btn btn-sm btn-info" wire:navigate>{{ __('cms::messages.edit') }}</a>
                                             @endif
                                             @if($row['list_url'])
-                                                <a href="{{ $row['list_url'] }}" class="btn btn-sm btn-secondary" wire:navigate>{{ __('Items') }}</a>
+                                                <a href="{{ $row['list_url'] }}" class="btn btn-sm btn-secondary" wire:navigate>{{ __('cms::messages.items') }}</a>
                                             @endif
                                         </div>
 
@@ -150,7 +189,7 @@
                         @endif
                     </div>
                 @empty
-                    <div class="text-muted">{{ __('No sections configured in this panel.') }}</div>
+                    <div class="text-muted">{{ __('cms::messages.no_sections_configured') }}</div>
                 @endforelse
             </div>
         </div>
@@ -160,7 +199,7 @@
         <div class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex align-items-center justify-content-center" style="z-index: 1080;">
             <div class="card shadow" style="width: min(920px, 95vw); max-height: 90vh;">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">{{ __('Choose UUID') }}</h4>
+                    <h4 class="mb-0">{{ __('cms::messages.choose_uuid') }}</h4>
                     <button type="button" class="btn btn-sm btn-light" wire:click="closeUuidPicker">×</button>
                 </div>
                 <div class="card-body">
@@ -169,7 +208,7 @@
                             type="text"
                             class="form-control"
                             wire:model.live.debounce.250ms="pickerSearch"
-                            placeholder="{{ __('Search by name / slug / uuid') }}"
+                            placeholder="{{ __('cms::messages.search_by_name_slug_uuid') }}"
                         >
                     </div>
 
@@ -177,9 +216,9 @@
                         <table class="table table-striped align-middle">
                             <thead>
                                 <tr>
-                                    <th>{{ __('Name') }}</th>
-                                    <th>{{ __('UUID') }}</th>
-                                    <th class="text-end">{{ __('Action') }}</th>
+                                    <th>{{ __('cms::messages.name') }}</th>
+                                    <th>{{ __('cms::messages.uuid') }}</th>
+                                    <th class="text-end">{{ __('cms::messages.action') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -193,13 +232,13 @@
                                                 class="btn btn-sm btn-primary"
                                                 wire:click='selectPickerUuid(@js($item["uuid"]))'
                                             >
-                                                {{ __('Select') }}
+                                                {{ __('cms::messages.select') }}
                                             </button>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="3" class="text-muted">{{ __('No results.') }}</td>
+                                        <td colspan="3" class="text-muted">{{ __('cms::messages.no_results') }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>

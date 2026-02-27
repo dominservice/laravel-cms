@@ -26,7 +26,7 @@ class CategoryIndex extends Component
         if ($category) {
             $category->delete();
             app(CmsStructuredSyncService::class)->sync();
-            session()->flash('status', 'Category deleted.');
+            session()->flash('status', __('cms::messages.category_deleted'));
         }
 
         $this->loadSections();
@@ -109,7 +109,7 @@ class CategoryIndex extends Component
             'name' => $translation?->name ?? '-',
             'slug' => $translation?->slug ?? '-',
             'type' => $this->normalizeTypeValue($model->type),
-            'status' => $model->status ? 'Enabled' : 'Disabled',
+            'status' => $model->status ? __('cms::messages.enabled') : __('cms::messages.disabled'),
             'parent_uuid' => (string) ($model->parent_uuid ?? '-'),
             'config_key' => $item['config_key'] ?? '-',
             default => (string) ($model->{$column} ?? '-'),

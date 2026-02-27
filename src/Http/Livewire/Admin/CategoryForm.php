@@ -96,7 +96,7 @@ class CategoryForm extends Component
         $data = $prepared['data'];
 
         if (!$prepared['hasName']) {
-            $this->addError('translations', 'The name cannot be empty. Provide a name in at least one language.');
+            $this->addError('translations', __('cms::messages.name_required_one_language'));
             return;
         }
 
@@ -118,7 +118,7 @@ class CategoryForm extends Component
 
         app(CmsStructuredSyncService::class)->sync();
 
-        session()->flash('status', $this->category->wasRecentlyCreated ? 'Category created.' : 'Category updated.');
+        session()->flash('status', $this->category->wasRecentlyCreated ? __('cms::messages.category_created') : __('cms::messages.category_updated'));
         $this->redirectRoute($this->adminRoute('category.index'));
     }
 
