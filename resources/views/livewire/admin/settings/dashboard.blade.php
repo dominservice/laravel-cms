@@ -60,16 +60,18 @@
                                         <div class="col-lg-8">
                                             @if($fieldType === 'textarea')
                                                 <textarea
-                                                    class="form-control"
+                                                    class="form-control cms-meta-input"
                                                     rows="3"
-                                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value, @js($locale))"
+                                                    data-meta-key="{{ $fieldKey }}"
+                                                    data-meta-locale="{{ $locale }}"
                                                 >{{ (string) ($metaValues[$fieldKey][$locale] ?? '') }}</textarea>
                                             @else
                                                 <input
                                                     type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
-                                                    class="form-control"
+                                                    class="form-control cms-meta-input"
+                                                    data-meta-key="{{ $fieldKey }}"
+                                                    data-meta-locale="{{ $locale }}"
                                                     value="{{ (string) ($metaValues[$fieldKey][$locale] ?? '') }}"
-                                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value, @js($locale))"
                                                 >
                                             @endif
                                         </div>
@@ -91,22 +93,27 @@
                         <div class="col-lg-8">
                             @if($fieldType === 'textarea')
                                 <textarea
-                                    class="form-control"
+                                    class="form-control cms-meta-input"
                                     rows="3"
-                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
+                                    data-meta-key="{{ $fieldKey }}"
                                 >{{ (string) ($metaValues[$fieldKey] ?? '') }}</textarea>
                             @else
                                 <input
                                     type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
-                                    class="form-control"
+                                    class="form-control cms-meta-input"
+                                    data-meta-key="{{ $fieldKey }}"
                                     value="{{ (string) ($metaValues[$fieldKey] ?? '') }}"
-                                    wire:change="saveMetaField(@js($fieldKey), $event.target.value)"
                                 >
                             @endif
                         </div>
                     </div>
                 @endforeach
             @endif
+        </div>
+        <div class="card-footer text-end">
+            <button type="button" class="btn btn-primary cms-meta-save-btn">
+                {{ __('cms::laravel_cms.save') }}
+            </button>
         </div>
     </div>
 
@@ -330,6 +337,38 @@
                 document.addEventListener('livewire:init', initSortables);
                 document.addEventListener('livewire:navigated', initSortables);
                 setTimeout(initSortables, 150);
+
+                document.addEventListener('click', function (event) {
+                    const button = event.target.closest('.cms-meta-save-btn');
+                    if (!button) {
+                        return;
+                    }
+
+                    const componentRoot = button.closest('[wire\\:id]');
+                    const componentId = componentRoot?.getAttribute('wire:id');
+                    const component = componentId ? window.Livewire?.find(componentId) : null;
+                    if (!component || !componentRoot) {
+                        return;
+                    }
+
+                    const payload = [];
+                    componentRoot.querySelectorAll('.cms-meta-input[data-meta-key]').forEach((field) => {
+                        payload.push({
+                            key: field.dataset.metaKey || '',
+                            locale: field.dataset.metaLocale || null,
+                            value: field.value,
+                        });
+                    });
+
+                    if (payload.length === 0) {
+                        return;
+                    }
+
+                    button.disabled = true;
+                    component.call('saveMetaFieldsBatch', payload).finally(() => {
+                        button.disabled = false;
+                    });
+                });
             })();
         </script>
     @endpush

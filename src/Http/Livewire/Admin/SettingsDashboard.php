@@ -37,16 +37,37 @@ class SettingsDashboard extends Component
 
     public function saveMetaField(string $key, mixed $value, ?string $locale = null): void
     {
-        $targetKey = $locale ? ($key . '.' . $locale) : $key;
-        CmsConfigStore::set($targetKey, $value);
+        $this->persistMetaField($key, $value, $locale, true);
+    }
 
-        if ($locale) {
-            $this->metaValues[$key][$locale] = $value;
-        } else {
-            $this->metaValues[$key] = $value;
+    /**
+     * @param array<int, array<string, mixed>> $items
+     */
+    public function saveMetaFieldsBatch(array $items): void
+    {
+        $saved = 0;
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $key = (string) ($item['key'] ?? '');
+            if ($key === '') {
+                continue;
+            }
+
+            $localeRaw = $item['locale'] ?? null;
+            $locale = is_string($localeRaw) && $localeRaw !== '' ? $localeRaw : null;
+            $value = $item['value'] ?? null;
+
+            $this->persistMetaField($key, $value, $locale, false);
+            $saved++;
         }
 
-        session()->flash('status', __('cms::laravel_cms.settings_saved'));
+        if ($saved > 0) {
+            session()->flash('status', __('cms::laravel_cms.settings_saved'));
+        }
     }
 
     public function updateGroupField(string $groupKey, string $handle, string $field, mixed $value, string $type = 'boolean'): void
@@ -180,6 +201,22 @@ class SettingsDashboard extends Component
             }
 
             $this->metaValues[$key] = config($key);
+        }
+    }
+
+    private function persistMetaField(string $key, mixed $value, ?string $locale = null, bool $flash = false): void
+    {
+        $targetKey = $locale ? ($key . '.' . $locale) : $key;
+        CmsConfigStore::set($targetKey, $value);
+
+        if ($locale) {
+            $this->metaValues[$key][$locale] = $value;
+        } else {
+            $this->metaValues[$key] = $value;
+        }
+
+        if ($flash) {
+            session()->flash('status', __('cms::laravel_cms.settings_saved'));
         }
     }
 
