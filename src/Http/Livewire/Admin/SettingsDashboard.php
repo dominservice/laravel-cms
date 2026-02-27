@@ -6,6 +6,7 @@ use Dominservice\LaravelCms\Models\Category;
 use Dominservice\LaravelCms\Models\Content;
 use Dominservice\LaravelCms\Services\CmsStructuredSyncService;
 use Dominservice\LaravelCms\Support\CmsConfigStore;
+use Dominservice\LaravelCms\Support\CmsLocales;
 use Dominservice\LaravelCms\Support\CmsSectionResolver;
 use Illuminate\View\View;
 use Livewire\Component;
