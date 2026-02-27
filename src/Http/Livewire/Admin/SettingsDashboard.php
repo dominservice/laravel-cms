@@ -34,13 +34,6 @@ class SettingsDashboard extends Component
         $this->loadPanels();
     }
 
-    public function boot(): void
-    {
-        if (app()->bound('debugbar')) {
-            app('debugbar')->disable();
-        }
-    }
-
     public function saveMetaField(string $key, mixed $value, ?string $locale = null): void
     {
         $targetKey = $locale ? ($key . '.' . $locale) : $key;
