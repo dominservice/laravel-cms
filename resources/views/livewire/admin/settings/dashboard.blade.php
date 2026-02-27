@@ -70,7 +70,6 @@
                                 class="cms-settings-sortable"
                                 data-group-key="{{ $section['group_key'] }}"
                                 data-order-key="{{ $section['order_key'] }}"
-                                data-component-id="{{ $this->id }}"
                             >
                                 @foreach($section['rows'] as $row)
                                     <div class="row g-2 align-items-center border-bottom py-3 cms-settings-row" data-handle="{{ $row['handle'] }}">
@@ -227,8 +226,8 @@
                         }
 
                         const orderKey = el.dataset.orderKey || 'order';
-                        const componentId = el.dataset.componentId;
-                        const component = window.Livewire?.find(componentId);
+                        const componentId = el.closest('[wire\\:id]')?.getAttribute('wire:id');
+                        const component = componentId ? window.Livewire?.find(componentId) : null;
                         if (!component) {
                             return;
                         }
@@ -262,4 +261,3 @@
         </script>
     @endpush
 </div>
-
