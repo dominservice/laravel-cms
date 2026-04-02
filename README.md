@@ -22,7 +22,7 @@ codex resume 019bb798-1acf-7612-9ef9-4e1b27acbb45
   <a href="https://packagist.org/packages/dominservice/laravel-cms"><img src="https://img.shields.io/packagist/v/dominservice/laravel-cms.svg" alt="Packagist"></a>
   <a href="https://packagist.org/packages/dominservice/laravel-cms/stats"><img src="https://img.shields.io/packagist/dt/dominservice/laravel-cms.svg" alt="Downloads"></a>
   <a href="#"><img src="https://img.shields.io/badge/PHP-8.2%2B-777bb3" alt="PHP 8.2+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Laravel-9%E2%80%9312-ff2d20" alt="Laravel 9–12"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Laravel-9%E2%80%9313-ff2d20" alt="Laravel 9–13"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="#support"><img src="https://img.shields.io/badge/support-Ko%E2%80%91fi-success" alt="Support"></a>
 </p>
@@ -74,7 +74,7 @@ codex resume 019bb798-1acf-7612-9ef9-4e1b27acbb45
 - Backward-compatible upload methods (`@deprecated`) + new, MediaKit‑based APIs.
 
 ## Requirements
-- PHP 8.2+, Laravel 9–12
+- PHP 8.2+, Laravel 9–13
 - **dominservice/laravel-media-kit** installed & configured
 - **livewire/livewire** v3 (admin panel UI)
 
