@@ -11,6 +11,7 @@ use Dominservice\LaravelCms\Support\CmsLocales;
 use Dominservice\LaravelCms\Support\CmsSectionResolver;
 use Dominservice\LaravelCms\Support\CmsTypeResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -40,6 +41,9 @@ class ContentForm extends Component
     public $avatar_small;
     public $poster;
     public $small_poster;
+    public array $schemaFields = [];
+    public array $metaData = [];
+    public array $metaTranslations = [];
 
     public function mount(?string $section = null, ?string $blockKey = null, ?Content $content = null): void
     {
@@ -53,7 +57,11 @@ class ContentForm extends Component
         $this->configKey = request()->query('config_key');
         $this->configHandle = request()->query('config_handle');
         $queryType = request()->query('type');
-        if ($queryType) {
+        $hasScopedTypeContext = $this->sectionKey !== null
+            || $this->blockKey !== null
+            || $this->configKey !== null
+            || $this->configHandle !== null;
+        if ($queryType && $hasScopedTypeContext) {
             $this->fixedType = (string) $queryType;
         }
         if (!$this->configKey) {
@@ -63,6 +71,7 @@ class ContentForm extends Component
         $this->fields = $sectionConfig
             ? CmsSectionResolver::formFields($sectionConfig, 'content')
             : config('cms.admin.content.default_form_fields', []);
+        $this->schemaFields = $this->resolveSchemaFields($sectionConfig, $blockConfig);
         $this->locales = CmsLocales::all();
         $this->types = CmsTypeResolver::contentTypes();
         $this->categories = Category::all()
@@ -81,6 +90,25 @@ class ContentForm extends Component
         $this->external_url = $this->content->external_url;
         $this->category_uuid = $this->content->categories->pluck('uuid')->first();
         $this->media_type = $this->content->video_path ? 'video' : 'image';
+
+        $existingMeta = $this->normalizeMeta($this->content->meta);
+        foreach ($this->schemaFields as $fieldKey => $schema) {
+            if (!empty($schema['translatable'])) {
+                foreach ($this->locales as $locale) {
+                    $default = $this->resolveSchemaDefault($schema, $locale);
+                    $this->metaTranslations[$locale][$fieldKey] = $this->normalizeSchemaValue(
+                        Arr::get($existingMeta, '_translations.' . $locale . '.' . $fieldKey, $default),
+                        (string) ($schema['type'] ?? 'text')
+                    );
+                }
+            } else {
+                $default = $this->resolveSchemaDefault($schema);
+                $this->metaData[$fieldKey] = $this->normalizeSchemaValue(
+                    Arr::get($existingMeta, $fieldKey, $default),
+                    (string) ($schema['type'] ?? 'text')
+                );
+            }
+        }
 
         foreach ($this->locales as $locale) {
             $translation = $this->content->translate($locale);
@@ -118,6 +146,7 @@ class ContentForm extends Component
         $data['is_nofollow'] = $this->is_nofollow ? 1 : 0;
         $data['external_url'] = $this->external_url;
         $data['parent_uuid'] = $this->content->parent_uuid;
+        $data['meta'] = $this->buildMetaPayload();
 
         if ($this->content->uuid) {
             $this->content->update($data);
@@ -186,6 +215,149 @@ class ContentForm extends Component
         }
 
         return (string) $type;
+    }
+
+    private function resolveSchemaFields(?array $sectionConfig, ?array $blockConfig): array
+    {
+        $configured = $blockConfig['schema_fields'] ?? $sectionConfig['schema_fields'] ?? [];
+        $resolved = [];
+
+        foreach ((array) $configured as $fieldKey => $fieldSchema) {
+            if (is_int($fieldKey) && is_string($fieldSchema)) {
+                $fieldKey = $fieldSchema;
+                $fieldSchema = [];
+            }
+
+            if (!is_string($fieldKey) || $fieldKey === '') {
+                continue;
+            }
+
+            $schema = is_array($fieldSchema) ? $fieldSchema : [];
+            $resolved[$fieldKey] = array_merge([
+                'label' => ucfirst(str_replace('_', ' ', $fieldKey)),
+                'type' => 'text',
+                'translatable' => false,
+                'options' => [],
+                'default' => null,
+                'help' => null,
+            ], $schema);
+        }
+
+        return $resolved;
+    }
+
+    private function buildMetaPayload(): array
+    {
+        $meta = $this->normalizeMeta($this->content->meta);
+
+        foreach ($this->schemaFields as $fieldKey => $schema) {
+            $fieldType = (string) ($schema['type'] ?? 'text');
+            if (!empty($schema['translatable'])) {
+                foreach ($this->locales as $locale) {
+                    $value = $this->metaTranslations[$locale][$fieldKey] ?? $this->resolveSchemaDefault($schema, $locale);
+                    Arr::set($meta, '_translations.' . $locale . '.' . $fieldKey, $this->normalizeSchemaValue($value, $fieldType));
+                }
+                continue;
+            }
+
+            $value = $this->metaData[$fieldKey] ?? $this->resolveSchemaDefault($schema);
+            Arr::set($meta, $fieldKey, $this->normalizeSchemaValue($value, $fieldType));
+        }
+
+        return $meta;
+    }
+
+    private function normalizeMeta(mixed $meta): array
+    {
+        if (is_array($meta)) {
+            return $meta;
+        }
+
+        if (is_object($meta)) {
+            return json_decode(json_encode($meta, JSON_UNESCAPED_UNICODE) ?: '[]', true) ?: [];
+        }
+
+        return [];
+    }
+
+    private function resolveSchemaDefault(array $schema, ?string $locale = null): mixed
+    {
+        $default = $schema['default'] ?? null;
+        if ($locale !== null && is_array($default)) {
+            return $default[$locale] ?? null;
+        }
+
+        return $default;
+    }
+
+    private function normalizeSchemaValue(mixed $value, string $type): mixed
+    {
+        return match ($type) {
+            'checkbox', 'boolean', 'toggle' => (bool) $value,
+            'number' => is_numeric($value) ? $value + 0 : null,
+            'repeater' => is_array($value) ? array_values($value) : [],
+            'editorjs', 'textarea', 'text', 'url', 'select' => is_scalar($value) || $value === null ? (string) ($value ?? '') : '',
+            default => $value,
+        };
+    }
+
+    public function addRepeaterItem(string $fieldKey, ?string $locale = null): void
+    {
+        $schema = $this->schemaFields[$fieldKey] ?? null;
+        if (!is_array($schema) || (string) ($schema['type'] ?? '') !== 'repeater') {
+            return;
+        }
+
+        $item = $this->defaultRepeaterItem($schema, $locale);
+
+        if ($locale !== null && !empty($schema['translatable'])) {
+            $rows = $this->metaTranslations[$locale][$fieldKey] ?? [];
+            $rows[] = $item;
+            $this->metaTranslations[$locale][$fieldKey] = array_values($rows);
+            return;
+        }
+
+        $rows = $this->metaData[$fieldKey] ?? [];
+        $rows[] = $item;
+        $this->metaData[$fieldKey] = array_values($rows);
+    }
+
+    public function removeRepeaterItem(string $fieldKey, int $index, ?string $locale = null): void
+    {
+        $schema = $this->schemaFields[$fieldKey] ?? null;
+        if (!is_array($schema) || (string) ($schema['type'] ?? '') !== 'repeater') {
+            return;
+        }
+
+        if ($locale !== null && !empty($schema['translatable'])) {
+            $rows = $this->metaTranslations[$locale][$fieldKey] ?? [];
+            unset($rows[$index]);
+            $this->metaTranslations[$locale][$fieldKey] = array_values($rows);
+            return;
+        }
+
+        $rows = $this->metaData[$fieldKey] ?? [];
+        unset($rows[$index]);
+        $this->metaData[$fieldKey] = array_values($rows);
+    }
+
+    private function defaultRepeaterItem(array $schema, ?string $locale = null): array
+    {
+        $defaults = [];
+
+        foreach ((array) ($schema['fields'] ?? []) as $subFieldKey => $subFieldSchema) {
+            if (!is_string($subFieldKey) || $subFieldKey === '') {
+                continue;
+            }
+
+            $subSchema = is_array($subFieldSchema) ? $subFieldSchema : [];
+            $defaults[$subFieldKey] = $this->normalizeSchemaValue(
+                $this->resolveSchemaDefault($subSchema, $locale),
+                (string) ($subSchema['type'] ?? 'text')
+            );
+        }
+
+        return $defaults;
     }
 
     private function persistConfig(array $section, Content $content, ?string $configKey, ?string $configHandle, ?array $blockConfig): void
