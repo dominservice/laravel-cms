@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable(config('cms.tables.contents')) ) {
+        if (Schema::hasTable(config('cms.tables.contents')) && !Schema::hasColumn(config('cms.tables.contents'), 'parent_uuid')) {
             Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
                 $table->uuid('parent_uuid')->nullable()->after('uuid');
                 $table->foreign('parent_uuid')
@@ -27,7 +27,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (Schema::hasTable(config('cms.tables.contents')) ) {
+        if (Schema::hasTable(config('cms.tables.contents')) && Schema::hasColumn(config('cms.tables.contents'), 'parent_uuid')) {
             Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
                 $table->dropColumn('parent_uuid');
             });

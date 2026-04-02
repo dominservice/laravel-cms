@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-           if (Schema::hasTable(config('cms.tables.content_translations')) ) {
-                   Schema::table(config('cms.tables.content_translations'), function (Blueprint $table) {
-                       $table->unsignedTinyInteger('sort')->nullable();
+           if (Schema::hasTable(config('cms.tables.contents')) && !Schema::hasColumn(config('cms.tables.contents'), 'sort')) {
+                   Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
+                       $table->unsignedInteger('sort')->nullable();
                    });
                }
     }
@@ -23,8 +23,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-          if (Schema::hasTable(config('cms.tables.content_translations')) ) {
-                    Schema::table(config('cms.tables.content_translations'), function (Blueprint $table) {
+          if (Schema::hasTable(config('cms.tables.contents')) && Schema::hasColumn(config('cms.tables.contents'), 'sort')) {
+                    Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
                         $table->dropColumn('sort');
                     });
                 }

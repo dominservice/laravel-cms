@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-           if (Schema::hasTable(config('cms.tables.content_translations')) ) {
+           if (Schema::hasTable(config('cms.tables.content_translations')) && !Schema::hasColumn(config('cms.tables.content_translations'), 'short_description')) {
                    Schema::table(config('cms.tables.content_translations'), function (Blueprint $table) {
                        $table->text('short_description')->nullable();
                    });
@@ -23,7 +23,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-          if (Schema::hasTable(config('cms.tables.content_translations')) ) {
+          if (Schema::hasTable(config('cms.tables.content_translations')) && Schema::hasColumn(config('cms.tables.content_translations'), 'short_description')) {
                     Schema::table(config('cms.tables.content_translations'), function (Blueprint $table) {
                         $table->dropColumn('short_description');
                     });

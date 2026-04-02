@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable(config('cms.tables.contents')) ) {
+        if (Schema::hasTable(config('cms.tables.contents')) && !Schema::hasColumn(config('cms.tables.contents'), 'meta')) {
             Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
                 $table->json('meta')->nullable()->after('external_url');
             });
@@ -23,7 +23,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (Schema::hasTable(config('cms.tables.contents')) ) {
+        if (Schema::hasTable(config('cms.tables.contents')) && Schema::hasColumn(config('cms.tables.contents'), 'meta')) {
             Schema::table(config('cms.tables.contents'), function (Blueprint $table) {
                 $table->dropColumn('meta');
             });

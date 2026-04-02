@@ -399,6 +399,24 @@ return [
                 'category_uuid',
                 'media',
             ],
+            'editorjs' => [
+                'enabled' => true,
+                'fields' => [
+                    'description' => [
+                        'profile' => 'default',
+                    ],
+                ],
+                'profiles' => [
+                    'default' => [
+                        'tools' => ['header', 'list', 'quote', 'delimiter'],
+                        'min_height' => 180,
+                    ],
+                    'simple' => [
+                        'tools' => ['paragraph', 'list'],
+                        'min_height' => 160,
+                    ],
+                ],
+            ],
             'sections' => [
                 // Example of a single page with blocks.
                 // 'home' => [
