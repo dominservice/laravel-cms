@@ -16,6 +16,10 @@ class ContentSaveService
             'avatar_small' => 'nullable|file|mimes:mp4,mov,avi,jpeg,png,jpg,webp,webm',
             'poster' => 'nullable|file|mimes:jpeg,png,jpg,webp',
             'small_poster' => 'nullable|file|mimes:jpeg,png,jpg,webp',
+            'selected_avatar_asset_uuid' => 'nullable|uuid',
+            'selected_avatar_small_asset_uuid' => 'nullable|uuid',
+            'selected_poster_asset_uuid' => 'nullable|uuid',
+            'selected_small_poster_asset_uuid' => 'nullable|uuid',
         ];
     }
 
@@ -126,6 +130,11 @@ class ContentSaveService
                     $posterOnlySizes,
                     true
                 );
+            } else {
+                $this->importSelectedImageAssets($content, [
+                    'default' => $request->input('selected_poster_asset_uuid'),
+                    'small' => $request->input('selected_small_poster_asset_uuid'),
+                ], 'video_poster');
             }
 
             return;
@@ -197,6 +206,76 @@ class ContentSaveService
                 $imageOnlySizes,
                 true
             );
+        } else {
+            $this->importSelectedImageAssets($content, [
+                'default' => $request->input('selected_avatar_asset_uuid'),
+                'small' => $request->input('selected_avatar_small_asset_uuid'),
+            ], (string) ($request->input('avatar_kind') ?: 'avatar'));
         }
+    }
+
+    private function importSelectedImageAssets(Content $content, array $selectedAssets, string $kind): void
+    {
+        $payload = [];
+        $onlySizes = null;
+
+        if (!empty($selectedAssets['default'])) {
+            $path = $this->temporaryPathFromMediaAsset((string) $selectedAssets['default']);
+            if ($path) {
+                $payload['default'] = $path;
+                $onlySizes = ['large'];
+            }
+        }
+
+        if (!empty($selectedAssets['small'])) {
+            $path = $this->temporaryPathFromMediaAsset((string) $selectedAssets['small']);
+            if ($path) {
+                $payload['small'] = $path;
+                $onlySizes = isset($payload['default']) ? null : ['small'];
+            }
+        }
+
+        if (empty($payload)) {
+            return;
+        }
+
+        \Dominservice\LaravelCms\Helpers\Media::uploadModelImageWithDefaults(
+            $content,
+            $payload,
+            $kind,
+            'image',
+            $onlySizes,
+            true
+        );
+    }
+
+    private function temporaryPathFromMediaAsset(string $uuid): ?string
+    {
+        if (!class_exists(\Dominservice\MediaKit\Models\MediaAsset::class)) {
+            return null;
+        }
+
+        $asset = \Dominservice\MediaKit\Models\MediaAsset::query()->find($uuid);
+        if (!$asset) {
+            return null;
+        }
+
+        $disk = \Storage::disk($asset->disk);
+        if (!$disk->exists($asset->original_path)) {
+            return null;
+        }
+
+        $binary = $disk->get($asset->original_path);
+        $tmp = tempnam(sys_get_temp_dir(), 'cms-media-');
+        if ($tmp === false) {
+            return null;
+        }
+
+        $ext = $asset->original_ext ?: pathinfo($asset->original_path, PATHINFO_EXTENSION) ?: 'bin';
+        $target = $tmp . '.' . $ext;
+        file_put_contents($target, $binary);
+        @unlink($tmp);
+
+        return $target;
     }
 }

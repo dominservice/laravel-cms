@@ -417,6 +417,34 @@ return [
                     ],
                 ],
             ],
+            'media_picker' => [
+                'enabled' => true,
+                'browse_route' => 'admin.media.index',
+                'label' => 'Biblioteka mediów',
+                'helper' => 'Wybór z biblioteki może zostać nadpisany lokalnym uploadem w formularzu.',
+            ],
+            'media_slots' => [
+                'avatar' => [
+                    'label' => 'Główne media',
+                    'kind' => 'avatar',
+                    'device' => 'desktop',
+                ],
+                'avatar_small' => [
+                    'label' => 'Media mobilne',
+                    'kind' => 'avatar',
+                    'device' => 'mobile',
+                ],
+                'poster' => [
+                    'label' => 'Poster główny',
+                    'kind' => 'video_poster',
+                    'device' => 'desktop',
+                ],
+                'small_poster' => [
+                    'label' => 'Poster mobilny',
+                    'kind' => 'video_poster',
+                    'device' => 'mobile',
+                ],
+            ],
             'sections' => [
                 // Example of a single page with blocks.
                 // 'home' => [

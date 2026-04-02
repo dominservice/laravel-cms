@@ -1,12 +1,3 @@
-
-<!--
-
-codex resume 019bb798-1acf-7612-9ef9-4e1b27acbb45
-
-
-  This README was regenerated based on your current package and requirements.
--->
-
 <p align="center">
   <img src="docs/logo.png" alt="Dominservice Laravel CMS" width="600" />
 </p>
@@ -14,8 +5,7 @@ codex resume 019bb798-1acf-7612-9ef9-4e1b27acbb45
 <h1 align="center">dominservice/laravel-cms</h1>
 
 <p align="center">
-  Laravel CMS for multilingual content, categories and media (images & video) — integrated with
-  <strong>dominservice/laravel-media-kit</strong>.
+  Reusable Laravel CMS for multilingual pages, blocks, categories and media-driven content structures.
 </p>
 
 <p align="center">
@@ -24,338 +14,204 @@ codex resume 019bb798-1acf-7612-9ef9-4e1b27acbb45
   <a href="#"><img src="https://img.shields.io/badge/PHP-8.2%2B-777bb3" alt="PHP 8.2+"></a>
   <a href="#"><img src="https://img.shields.io/badge/Laravel-9%E2%80%9313-ff2d20" alt="Laravel 9–13"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="#support"><img src="https://img.shields.io/badge/support-Ko%E2%80%91fi-success" alt="Support"></a>
 </p>
 
-<p align="center">
-  <a href="#installation">Installation</a> •
-  <a href="#configuration">Configuration</a> •
-  <a href="#media-write-backward-compatible--recommended">Upload</a> •
-  <a href="#media-read-dynamicavataraccessor">Read</a> •
-  <a href="#upgrade-from-v2v3-to-v4-data-migration">Migration v2/v3 → v4</a> •
-  <a href="#tests">Tests</a> •
-  <a href="#support">Support</a>
-</p>
+## What This Package Solves
 
----
+`dominservice/laravel-cms` is designed for projects that need a practical CMS layer on top of Laravel, without locking the application into a closed website builder.
 
-> Last updated: 2025-10-17 20:38 UTC
+It gives you:
+- multilingual `page` and `block` content models,
+- configurable admin sections for content and categories,
+- config-driven settings dashboards,
+- Media Kit integration for images and video slots,
+- publishable views that can be adapted to any admin theme,
+- a structure that can start as a company website and grow into a larger CRM, ERP or portal.
 
-# Table of Contents
-- [Highlights](#highlights)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Upgrade from v2/v3 to v4 (data migration)](#upgrade-from-v2v3-to-v4-data-migration)
-- [Configuration](#configuration)
-    - [Tables](#tables)
-    - [Disks](#disks)
-    - [Profiles & sizes (files.*)](#profiles--sizes-files)
-    - [Kind ↔ config mapping (file_config_key_map)](#kind--config-mapping-file_config_key_map)
-    - [Logical name mapping (file_kind_map)](#logical-name-mapping-file_kind_map)
-- [Admin Panel (content & categories)](#admin-panel-content--categories)
-- [Routes & localized slugs](#routes--localized-slugs)
-- [Views and translations](#views-and-translations)
-- [Models & relations](#models--relations)
-- [Media: write (backward-compatible & recommended)](#media-write-backward-compatible--recommended)
-- [Media: read (DynamicAvatarAccessor)](#media-read-dynamicavataraccessor)
-- [Blade components / Variant URLs](#blade-components--variant-urls)
-- [End‑to‑end examples](#endtoend-examples)
-- [Tests](#tests)
-- [Support](#support)
-- [License](#license)
-- [Changelog (v4 summary)](#changelog-v4-summary)
+## Key Features
 
-## Highlights
-- Multilingual **contents** and **categories** (Astrotomic/Translatable).
-- Nested categories tree (Nested Set).
-- Media (images & video) with `kind` mapped to **MediaKit collection**.
-- **DynamicAvatarAccessor** — dynamic names like `avatar_sm`, `video_hd`, `poster_display`; if missing ⇒ returns `null`.
-- Content↔Content links with visibility windows and meta.
-- Backward-compatible upload methods (`@deprecated`) + new, MediaKit‑based APIs.
-
-## Requirements
-- PHP 8.2+, Laravel 9–13
-- **dominservice/laravel-media-kit** installed & configured
-- **livewire/livewire** v3 (admin panel UI)
+- multilingual contents and categories,
+- nested category trees,
+- configurable admin routes, middleware, layout mode and route names,
+- block-oriented homepage and static page management via `cms.default_pages.*`,
+- configurable block schemas stored in `meta`,
+- repeater fields for cards, FAQ items and similar structured content,
+- Editor.js profile support for rich text fields,
+- media slots for desktop/mobile image and video handling,
+- direct integration with `dominservice/laravel-media-kit`, including reusable library assets,
+- publishable views and language files.
 
 ## Installation
-```bash
-composer require dominservice/laravel-cms
 
-php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider"
-php artisan vendor:publish --provider="Dominservice\MediaKit\MediaKitServiceProvider"
+```bash
+composer require dominservice/laravel-cms dominservice/laravel-media-kit
+
+php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider" --tag=config
+php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider" --tag=views
+php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider" --tag=lang
+php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider" --tag=migrations
+
+php artisan vendor:publish --provider="Dominservice\MediaKit\MediaKitServiceProvider" --tag=mediakit-config
+php artisan vendor:publish --provider="Dominservice\MediaKit\MediaKitServiceProvider" --tag=mediakit-migrations
 
 php artisan migrate
 ```
 
-> In v4, all media **reads** are served via MediaKit. Legacy storage is migrated once (see below).
+## Admin Panel
 
-## Updating the package
-When you update the package in an existing project, merge new configuration keys and UI assets:
+The package includes a configurable admin panel for content, categories and settings.
 
-```bash
-php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider" --tag=config
-php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider" --tag=views
-php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider" --tag=lang
-php artisan config:clear
+Main configuration lives in `config/cms.php`:
+
+- `cms.admin.enabled`
+- `cms.admin.prefix`
+- `cms.admin.route_name_prefix`
+- `cms.admin.middleware`
+- `cms.admin.layout.mode`
+- `cms.admin.layout.view`
+- `cms.admin.layout.section`
+- `cms.admin.layout.component`
+
+Layout integration supports three modes:
+
+- `package`: use package-provided layout,
+- `extends`: render inside your existing Blade layout,
+- `component`: render inside a Blade component.
+
+This makes it easy to keep package logic inside the package, while styling the UI in the host project through published views.
+
+## Content Types, Blocks and Schemas
+
+The package supports configurable content and category types. You can keep simple arrays in config or point to your own enum classes.
+
+```php
+'types' => [
+    'content' => \App\Enums\CmsContentType::class,
+    'category' => \App\Enums\CmsCategoryType::class,
+],
 ```
 
-- Merge new keys from `config/cms.php` instead of overwriting your existing settings.
-- Publish views only if you want to override the CMS admin UI.
-- Publish language files if you want file-based route slug translations (see Routes & localized slugs).
+For block-based pages you can define sections in config and assign form fields, media slots and schema fields per section or block.
 
-## Upgrade from v2/v3 to v4 (data migration)
-```bash
-php artisan cms:media:migrate-v4
-# dry run:
-php artisan cms:media:migrate-v4 --dry-run
+Typical use cases:
+- homepage sections such as `hero`, `about`, `services`, `faq`, `cta`,
+- static pages with configurable visual variants,
+- reusable block types for landing pages and company websites.
+
+### Schema Fields in `meta`
+
+Block-specific configuration is stored in `meta`, so the host project can render frontend components using its own Blade views and CSS.
+
+Supported patterns include:
+- simple scalar fields,
+- translatable fields,
+- visual variants,
+- repeater fields,
+- structured button/link configuration,
+- Editor.js rich text payloads.
+
+## Media Integration
+
+The package uses `dominservice/laravel-media-kit` as the media layer.
+
+Current integration supports:
+- desktop and mobile images,
+- desktop and mobile video posters,
+- image and video slots in CMS forms,
+- importing already uploaded assets from the shared media library,
+- keeping CMS views publishable, so the host project can replace the UI without changing package logic.
+
+### Media Picker Configuration
+
+```php
+'admin' => [
+    'content' => [
+        'media_picker' => [
+            'enabled' => true,
+            'browse_route' => 'admin.media.index',
+            'label' => 'Biblioteka mediów',
+            'helper' => 'Wybierz istniejący asset z biblioteki lub wgraj nowy plik.',
+        ],
+    ],
+],
 ```
-- Detects legacy tables from `config('cms.tables.*')` (e.g. `cms_content_files`, `cms_category_files`, `cms_content_videos`).
-- Copies records into MediaKit (`media_assets`) mapping **kind → collection**; video renditions stored in meta.
-- On success, **drops** legacy tables. On a clean v4 install: no action.
 
-## Configuration
+The package exposes backend support for selecting library asset UUIDs. The host project can publish and extend the form views to provide a custom picker UX.
 
-**CMS:** `config/cms.php`  
-**MediaKit:** `config/media-kit.php`
+## Editor.js Profiles
 
-### Tables
-- `categories`, `category_translations`
-- `contents`, `content_translations`
-- `content_categories`
-- legacy: `content_files`, `category_files`, `content_video` (migration only)
-
-### Disks
-`cms.php` → `disks.*` are historical logical disks; real disk/URL is controlled by MediaKit (`media-kit.php`).
-
-### Profiles & sizes (`files.*`)
-Defines logical kinds, default `display` and list of sizes. In v4 it’s a logical contract; variants & URLs are produced by MediaKit.
-
-### Kind ↔ config mapping (`file_config_key_map`)
-Aliases one config key to another for `kind` resolution.
-
-### Logical name mapping (`file_kind_map`)
-Maps logical names consumed by accessors (e.g. `avatar`, `video_avatar`, `video_poster`) to concrete kinds.
-
-## Admin Panel (content & categories)
-The package ships with a configurable CMS admin panel for managing content, blocks, and categories.
-
-- Admin routes render Livewire v3 components by default.
-- Enable routes and set middleware in `cms.admin.*` (default: `web`, `auth`).
-- Define sections in `cms.admin.content.sections` and `cms.admin.category.sections`.
-- Required fields follow migrations: content requires `type`, `name`, `description`; category requires `type`, `name`.
-- Choose UI preset in `cms.admin.ui.theme` (`bootstrap` or `tailwind`) and override classes in `cms.admin.ui.classes`.
-- Control layout integration via `cms.admin.layout.mode`:
-  - `package`: use built-in layout (`cms::layouts.bootstrap` or `cms::layouts.tailwind`).
-  - `extends`: render inside your own Blade layout (set `cms.admin.layout.view` + `section`).
-  - `component`: render inside `<x-dynamic-component>` (set `cms.admin.layout.component`).
-- If you use `extends`/`component`, include `@livewireStyles` in `<head>` and `@livewireScripts` before `</body>` in your layout.
-
-### Settings Dashboard (config-driven)
-The admin dashboard now supports a dedicated configurable settings screen (`cms.admin.settings.*`):
-
-- Route: `cms.admin.settings.route` (default `settings`)
-- Dashboard cards/panels: `cms.admin.settings.panels`
-- Home/meta fields: `cms.admin.settings.meta_fields`
-- Meta fields can be multilingual via `translatable => true` (saved under `key.locale`)
-- UUID picker scoped by entity type (content/category)
-- Reorder for `group_key` sections with drag-and-drop (order key configurable)
-- Per-row additional switches/fields from section config (`settings_fields`) or inferred from group item data
-- Automatic structure sync after changes via `cms.admin.settings.sync`
-- Public-menu metadata can be configured as row fields and synced automatically (for example: dropdown flags, parent keys, groups, icons)
-
-`sync.indexes` are fully configurable and do not require fixed names in code. You can define:
-
-- `group_key` + `item_key` + `target_key` for list mappings
-- `single_key` + `single_type` + `target_key` for single assignments
-- `menu_keys` mapping source flags to target flags
-- `field_mappings` for custom target/source field mapping
-- `passthrough_fields` for 1:1 field copy from source row to target row
-- optional `children` sync (`relation`, nested `target_subkey`, or `flatten`)
+The package supports Editor.js configuration profiles so projects can choose a richer or more compact toolset per field.
 
 Example:
 
 ```php
 'admin' => [
-  'settings' => [
-    'sync' => [
-      'enabled' => true,
-      'indexes' => [
-        [
-          'group_key' => 'cms.default_pages.other',
-          'item_key' => 'page_uuid',
-          'target_key' => 'cms.pages',
-          'order_key' => 'order',
-          'entity_switch_key' => 'category',
-          'menu_keys' => [
-            'top_menu' => 'top_menu',
-            'footer_menu' => 'footer_menu',
-          ],
-          'children' => [
-            'enabled' => true,
-            'relation' => 'contents',
-            'target_subkey' => 'pages',
-          ],
-        ],
-      ],
-    ],
-  ],
-],
-```
-
-## Routes & localized slugs
-Routes are optional and fully configured in `cms.routes.*`.
-
-- `enabled`: register public CMS routes.
-- `use_locales` + `use_locale_prefix`: create per-locale prefixes (`/pl/...`, `/en/...`) or keep a single set.
-- `locale_middleware`: defaults to `language` from `dominservice/data_locale_parser` (optional).
-- `translation_group`: used when `translated_slugs` is on (defaults to `routes`).
-
-Page routes are configured in `cms.routes.pages`:
-```php
-'routes' => [
-    'enabled' => true,
-    'pages' => [
-        'home' => [
-            'slug' => '/',
-            'translated' => true,
-            'content_key' => 'cms.default_pages.home.page_uuid',
-            'view' => 'cms::frontend.page',
-        ],
-        'contact' => [
-            'slug' => ['pl' => 'kontakt', 'en' => 'contact'],
-            'content_key' => 'cms.default_pages.contact.page_uuid',
+    'content' => [
+        'editorjs' => [
+            'profiles' => [
+                'default' => [
+                    'tools' => ['paragraph', 'header', 'list', 'quote'],
+                ],
+                'compact' => [
+                    'tools' => ['paragraph', 'list'],
+                ],
+            ],
+            'field_profiles' => [
+                'description' => 'default',
+                'faq_items.answer' => 'compact',
+            ],
         ],
     ],
 ],
 ```
 
-Category routes are configured in `cms.routes.category`:
-```php
-'category' => [
-    'enabled' => true,
-    'prefix' => ['pl' => 'kategoria', 'en' => 'category'],
-    'route_name' => 'category.show',
-    'view' => 'cms::frontend.category',
-],
-```
+## Settings Dashboard
 
-If you want to use file-based slug translations, publish `resources/lang/*/routes.php` and keep
-`cms.routes.translation_group = 'routes'`. If you prefer package translations without publishing,
-set `cms.routes.translation_group = 'cms::routes'` (note: `data_locale_parser` helpers use `routes.*`).
+The settings dashboard is driven by configuration and can sync UUID-based assignments back into structured config arrays.
 
-## Views and translations
-Publish package UI and route translations if you want to override them:
+Useful for:
+- assigning homepage page UUIDs,
+- assigning homepage blocks,
+- syncing public menu structures,
+- storing multilingual meta fields,
+- managing config-driven CMS sections without writing extra controllers.
+
+## Views and Overrides
+
+The package is meant to be published and themed.
 
 ```bash
 php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider" --tag=views
 php artisan vendor:publish --provider="Dominservice\LaravelCms\ServiceProvider" --tag=lang
 ```
 
-## Models & relations
-- `Models\Content`, `Models\Category` (translations, meta).
-- MediaKit relation: morph to `MediaAsset` (`model_type`, `model_id`, `collection`).
+Recommended approach:
+- keep routes, controllers, Livewire classes and storage logic in the package,
+- publish package views,
+- override the views in the host project to match the chosen admin theme.
 
-## Media: write (backward-compatible & recommended)
+This keeps the CMS reusable between projects while still allowing tailored UI.
 
-### Backward‑compatible (deprecated in CMS)
-```php
-use Dominservice\LaravelCms\Helpers\Media;
+## Extensibility
 
-// images
-Media::uploadModelImage($content, $uploadedFile, 'avatar', null, null, true);
-Media::uploadModelResponsiveImages($content, $uploadedFile, 'avatar');
-Media::uploadModelImageWithDefaults($content, $uploadedFile, 'avatar');
+The package is intentionally config-first and open to project-level extension.
 
-// video renditions
-Media::uploadModelVideos($content, [
-  'hd' => $fileHD,
-  'sd' => $fileSD
-], 'video_avatar');
-```
+You can extend it through:
+- your own enum classes for content and category types,
+- additional block schemas in app config,
+- published views,
+- custom frontend renderers,
+- custom permissions and middleware on admin routes,
+- custom settings panels and sync indexes.
 
-### Recommended (MediaKit)
-```php
-use Dominservice\MediaKit\Traits\HasMedia;
+## Upgrade Notes
 
-class Content extends Model {
-  use HasMedia;
-}
-
-// in your service/controller
-$content->addMedia($uploadedFile, 'avatar'); // original + variants by MediaKit
-```
-
-## Media: read (DynamicAvatarAccessor)
-```php
-class Content extends Model {
-  use \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor;
-}
-
-$content->avatar;         // 'display' variant of 'avatar'
-$content->avatar_sm;      // 'sm' variant
-$content->video_hd;       // video avatar 'hd'
-$content->poster_display; // poster 'display'
-```
-Missing file/variant ⇒ returns **null** (no exceptions).
-
-## Blade components / Variant URLs
-MediaKit exposes route:
-```
-/media/{{asset-uuid}}/{{variant}}/{{slug?}}
-```
-Accessors already return such URLs — plug them directly into `<img>` / `<video>`. Blade components from MediaKit can be used alongside existing views.
-
-## End‑to‑end examples
-
-### 1) Upload form + render image
-```php
-// Controller
-\Dominservice\LaravelCms\Helpers\Media::uploadModelImage($content, $request->file('avatar'), 'avatar');
-
-// Blade
-<img src="{{ $content->avatar ?? asset('img/placeholder.png') }}" alt="avatar">
-```
-
-### 2) Video with renditions + poster
-```php
-// Controller
-\Dominservice\LaravelCms\Helpers\Media::uploadModelVideos($content, [
-  'hd' => $request->file('video_hd'),
-  'sd' => $request->file('video_sd'),
-], 'video_avatar');
-
-// Blade
-<video controls poster="{{ $content->poster_display }}">
-  <source src="{{ $content->video_hd }}" type="video/mp4">
-  <source src="{{ $content->video_sd }}" type="video/mp4">
-</video>
-```
-
-### 3) Gallery (custom kind)
-```php
-@foreach(($content->gallery_md_list ?? []) as $url)
-  <img src="{{ $url }}" alt="gallery item">
-@endforeach
-```
-
-## Tests
-Edge‑case coverage recommendations:
-- missing files/kinds ⇒ returns `null`, no exceptions,
-- dynamic names (`avatar_sm`, `video_hd`, `poster_display`, custom kinds),
-- migration v2/v3 → v4 on empty DB, with data and in `--dry-run` mode,
-- deprecated helper methods delegate to MediaKit,
-- integration tests with Laravel app boot (artisan, migrations, storage fake).
-
-## Support
-### Support this project (Ko‑fi)
-If this package saves you time, consider buying me a coffee: https://ko-fi.com/dominservice — thank you!
+When upgrading existing projects:
+- merge new config keys instead of overwriting the whole file,
+- republish views only if you want the new default UI,
+- republish migrations only when needed,
+- verify `media-kit` config and routes if you use the shared media library.
 
 ## License
-MIT — see `LICENSE`.
 
-## Changelog (v4 summary)
-- Full read/write integration with **MediaKit**.
-- `DynamicAvatarAccessor`: dynamic names, `null` on missing.
-- v2/v3 → v4 migration (legacy tables dropped afterwards).
-- Deprecated upload methods preserved for smooth transition; new code should use MediaKit APIs.
+MIT

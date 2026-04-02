@@ -41,6 +41,10 @@ class ContentForm extends Component
     public $avatar_small;
     public $poster;
     public $small_poster;
+    public ?string $selected_avatar_asset_uuid = null;
+    public ?string $selected_avatar_small_asset_uuid = null;
+    public ?string $selected_poster_asset_uuid = null;
+    public ?string $selected_small_poster_asset_uuid = null;
     public array $schemaFields = [];
     public array $metaData = [];
     public array $metaTranslations = [];
@@ -199,6 +203,17 @@ class ContentForm extends Component
         }
         if ($this->small_poster) {
             $request->files->set('small_poster', $this->small_poster);
+        }
+
+        foreach ([
+            'selected_avatar_asset_uuid' => $this->selected_avatar_asset_uuid,
+            'selected_avatar_small_asset_uuid' => $this->selected_avatar_small_asset_uuid,
+            'selected_poster_asset_uuid' => $this->selected_poster_asset_uuid,
+            'selected_small_poster_asset_uuid' => $this->selected_small_poster_asset_uuid,
+        ] as $key => $value) {
+            if (is_string($value) && $value !== '') {
+                $request->request->set($key, $value);
+            }
         }
 
         return $request;
