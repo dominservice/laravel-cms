@@ -261,6 +261,7 @@ class SettingsDashboard extends Component
                     'group_key' => (string) ($sectionConfig['group_key'] ?? ''),
                     'order_key' => (string) ($sectionConfig['order_key'] ?? 'order'),
                     'manage_url' => $this->sectionManageUrl($source, $sectionKey),
+                    'block_rows' => $source === 'content' ? $this->buildBlockRowsForSection($sectionKey, (array) $sectionConfig) : [],
                     'rows' => $rows,
                 ];
             }
@@ -291,6 +292,39 @@ class SettingsDashboard extends Component
         }
 
         return [];
+    }
+
+    /**
+     * @param array<string,mixed> $sectionConfig
+     * @return array<int, array<string,mixed>>
+     */
+    private function buildBlockRowsForSection(string $sectionKey, array $sectionConfig): array
+    {
+        $rows = [];
+
+        foreach ((array) ($sectionConfig['blocks'] ?? []) as $blockKey => $blockConfig) {
+            if (!is_string($blockKey) || !is_array($blockConfig)) {
+                continue;
+            }
+
+            $configKey = (string) ($blockConfig['config_key'] ?? '');
+            if ($configKey === '') {
+                continue;
+            }
+
+            $rows[] = $this->buildConfigRow(
+                'content',
+                $sectionKey,
+                $blockConfig + ['type' => 'block'],
+                $configKey,
+                null,
+                $blockKey,
+                'page_uuid',
+                []
+            );
+        }
+
+        return $rows;
     }
 
     /**
