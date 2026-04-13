@@ -6,6 +6,7 @@ use Dominservice\LaravelCms\Models\Category;
 use Dominservice\LaravelCms\Services\CmsStructuredSyncService;
 use Dominservice\LaravelCms\Support\CmsLocales;
 use Dominservice\LaravelCms\Support\CmsSectionResolver;
+use Dominservice\LaravelCms\Support\CmsTypeResolver;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -13,10 +14,19 @@ class CategoryIndex extends Component
 {
     public array $sections = [];
     public ?string $onlySectionKey = null;
+    public ?string $onlyType = null;
+    public string $search = '';
 
     public function mount(): void
     {
         $this->onlySectionKey = request()->query('section');
+        $this->onlyType = filled(request()->query('type')) ? (string) request()->query('type') : null;
+        $this->search = trim((string) request()->query('search', ''));
+        $this->loadSections();
+    }
+
+    public function updatedSearch(): void
+    {
         $this->loadSections();
     }
 
@@ -44,22 +54,87 @@ class CategoryIndex extends Component
         $locale = CmsLocales::default();
         $sections = [];
 
+        if ($this->onlyType && in_array($this->onlyType, CmsTypeResolver::categoryTypes(), true)) {
+            $items = Category::query()
+                ->where('type', $this->onlyType)
+                ->latest()
+                ->get()
+                ->map(function (Category $category) {
+                    return [
+                        'key' => $category->uuid,
+                        'label' => $category->uuid,
+                        'config_key' => null,
+                        'model' => $category,
+                    ];
+                })
+                ->all();
+
+            $sections[] = [
+                'key' => 'type-' . $this->onlyType,
+                'label' => $this->onlyType,
+                'columns' => config('cms.admin.category.default_columns', []),
+                'items' => $this->filterMappedItems($this->mapCategoryItems($items, ['key' => 'type', 'type' => $this->onlyType], $locale)),
+                'allow_create' => true,
+                'create_url' => route($this->adminRoute('category.create'), ['type' => $this->onlyType]),
+            ];
+
+            $this->sections = $sections;
+            return;
+        }
+
         foreach (CmsSectionResolver::categorySections() as $section) {
             if ($this->onlySectionKey && ($section['key'] ?? null) !== $this->onlySectionKey) {
                 continue;
             }
             $items = CmsSectionResolver::itemsForCategorySection($section);
+            $mappedItems = $this->filterMappedItems($this->mapCategoryItems($items, $section, $locale));
+
+            if ($this->search !== '' && $mappedItems === []) {
+                continue;
+            }
+
             $sections[] = [
                 'key' => $section['key'],
                 'label' => $section['label'],
                 'columns' => $section['columns'],
-                'items' => $this->mapCategoryItems($items, $section, $locale),
+                'items' => $mappedItems,
                 'allow_create' => (bool) ($section['allow_create'] ?? true),
                 'create_url' => $this->sectionCreateUrl($section),
             ];
         }
 
         $this->sections = $sections;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterMappedItems(array $items): array
+    {
+        $search = trim($this->search);
+        if ($search === '') {
+            return $items;
+        }
+
+        $needle = mb_strtolower($search);
+
+        return array_values(array_filter($items, function (array $item) use ($needle): bool {
+            $haystacks = [
+                (string) ($item['key'] ?? ''),
+                (string) ($item['label'] ?? ''),
+                (string) ($item['config_key'] ?? ''),
+                (string) ($item['model']->uuid ?? ''),
+            ];
+
+            foreach ((array) ($item['columns'] ?? []) as $value) {
+                $haystacks[] = is_scalar($value) ? (string) $value : '';
+            }
+
+            $joined = mb_strtolower(implode(' ', array_filter($haystacks, static fn ($value) => $value !== '')));
+
+            return str_contains($joined, $needle);
+        }));
     }
 
     private function mapCategoryItems(array $items, array $section, string $locale): array

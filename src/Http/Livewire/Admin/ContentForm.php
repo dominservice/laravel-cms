@@ -118,6 +118,7 @@ class ContentForm extends Component
             $translation = $this->content->translate($locale);
             $this->translations[$locale] = [
                 'name' => $translation?->name ?? '',
+                'slug' => $translation?->slug ?? '',
                 'sub_name' => $translation?->sub_name ?? '',
                 'short_description' => $translation?->short_description ?? '',
                 'description' => $translation?->description ?? '',

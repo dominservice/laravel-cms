@@ -1,6 +1,9 @@
 @php($routePrefix = rtrim(config('cms.admin.route_name_prefix', 'cms.'), '.'))
 @php($routePrefix = $routePrefix === '' ? '' : $routePrefix . '.')
 @php($fields = $fields ?? [])
+@php($editorJsConfig = (array) config('cms.admin.content.editorjs', []))
+@php($editorJsFields = array_keys((array) ($editorJsConfig['fields'] ?? [])))
+@php($editorJsProfiles = (array) ($editorJsConfig['profiles'] ?? []))
 
 <form wire:submit.prevent="save" enctype="multipart/form-data">
     @if($errors->any())
@@ -113,6 +116,11 @@
                             </div>
                         @endif
 
+                        <div class="{{ $cmsUi['form_group'] ?? 'mb-3' }}">
+                            <label class="{{ $cmsUi['label'] ?? '' }}" for="slug_{{ $locale }}">{{ __('cms::laravel_cms.slug') }}</label>
+                            <input id="slug_{{ $locale }}" type="text" wire:model.defer="translations.{{ $locale }}.slug" class="{{ $cmsUi['input'] ?? 'form-control' }}">
+                        </div>
+
                         @if(in_array('sub_name', $fields, true))
                             <div class="{{ $cmsUi['form_group'] ?? 'mb-3' }}">
                                 <label class="{{ $cmsUi['label'] ?? '' }}" for="sub_name_{{ $locale }}">{{ __('cms::laravel_cms.sub_name') }}</label>
@@ -130,7 +138,14 @@
                         @if(in_array('description', $fields, true))
                             <div class="{{ $cmsUi['form_group'] ?? 'mb-3' }}">
                                 <label class="{{ $cmsUi['label'] ?? '' }}" for="description_{{ $locale }}">{{ __('cms::laravel_cms.description') }}</label>
-                                <textarea id="description_{{ $locale }}" wire:model.defer="translations.{{ $locale }}.description" class="{{ $cmsUi['textarea'] ?? 'form-control' }}"></textarea>
+                                @if(in_array('description', $editorJsFields, true))
+                                    @php($descriptionProfile = (string) data_get($editorJsConfig, 'fields.description.profile', 'default'))
+                                    @php($descriptionMinHeight = (int) data_get($editorJsProfiles, $descriptionProfile . '.min_height', 180))
+                                    <textarea id="description_{{ $locale }}" wire:model.defer="translations.{{ $locale }}.description" class="{{ $cmsUi['textarea'] ?? 'form-control' }}" rows="8" data-editorjs-input="1">{{ $translations[$locale]['description'] ?? '' }}</textarea>
+                                    <div class="border border-gray-300 rounded-3 bg-white overflow-hidden d-none" data-editorjs-holder="description_{{ $locale }}" data-editorjs-profile="{{ $descriptionProfile }}" data-editorjs-min-height="{{ $descriptionMinHeight }}" wire:ignore></div>
+                                @else
+                                    <textarea id="description_{{ $locale }}" wire:model.defer="translations.{{ $locale }}.description" class="{{ $cmsUi['textarea'] ?? 'form-control' }}"></textarea>
+                                @endif
                             </div>
                         @endif
 

@@ -7,6 +7,7 @@ use Dominservice\LaravelCms\Models\Content;
 use Dominservice\LaravelCms\Services\CmsStructuredSyncService;
 use Dominservice\LaravelCms\Support\CmsLocales;
 use Dominservice\LaravelCms\Support\CmsSectionResolver;
+use Dominservice\LaravelCms\Support\CmsTypeResolver;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -15,11 +16,20 @@ class ContentIndex extends Component
     public array $sections = [];
     public ?Category $category = null;
     public ?string $onlySectionKey = null;
+    public ?string $onlyType = null;
+    public string $search = '';
 
     public function mount(?Category $category = null): void
     {
         $this->category = $category;
         $this->onlySectionKey = request()->query('section');
+        $this->onlyType = filled(request()->query('type')) ? (string) request()->query('type') : null;
+        $this->search = trim((string) request()->query('search', ''));
+        $this->loadSections();
+    }
+
+    public function updatedSearch(): void
+    {
         $this->loadSections();
     }
 
@@ -61,9 +71,38 @@ class ContentIndex extends Component
                 'key' => 'category-' . $this->category->uuid,
                 'label' => __('cms::laravel_cms.category_with_name', ['name' => ($this->category->translate($locale)?->name ?? $this->category->uuid)]),
                 'columns' => config('cms.admin.content.default_columns', []),
-                'items' => $this->mapContentItems($items, ['key' => 'category'], $locale),
+                'items' => $this->filterMappedItems($this->mapContentItems($items, ['key' => 'category'], $locale)),
                 'blocks' => [],
                 'allow_create' => false,
+            ];
+
+            $this->sections = $sections;
+            return;
+        }
+
+        if ($this->onlyType && in_array($this->onlyType, CmsTypeResolver::contentTypes(), true)) {
+            $items = Content::query()
+                ->where('type', $this->onlyType)
+                ->latest()
+                ->get()
+                ->map(function (Content $content) {
+                    return [
+                        'key' => $content->uuid,
+                        'label' => $content->uuid,
+                        'config_key' => null,
+                        'model' => $content,
+                    ];
+                })
+                ->all();
+
+            $sections[] = [
+                'key' => 'type-' . $this->onlyType,
+                'label' => $this->onlyType,
+                'columns' => config('cms.admin.content.default_columns', []),
+                'items' => $this->filterMappedItems($this->mapContentItems($items, ['key' => 'type', 'type' => $this->onlyType], $locale)),
+                'blocks' => [],
+                'allow_create' => true,
+                'create_url' => route($this->adminRoute('content.section.create'), ['section' => 'all', 'type' => $this->onlyType]),
             ];
 
             $this->sections = $sections;
@@ -76,19 +115,56 @@ class ContentIndex extends Component
             }
             $items = CmsSectionResolver::itemsForContentSection($section);
             $blocks = CmsSectionResolver::blocksForContentSection($section);
+            $mappedItems = $this->filterMappedItems($this->mapContentItems($items, $section, $locale));
+            $mappedBlocks = $this->filterMappedItems($this->mapContentItems($blocks, $section, $locale, true));
+
+            if ($this->search !== '' && $mappedItems === [] && $mappedBlocks === []) {
+                continue;
+            }
 
             $sections[] = [
                 'key' => $section['key'],
                 'label' => $section['label'],
                 'columns' => $section['columns'],
-                'items' => $this->mapContentItems($items, $section, $locale),
-                'blocks' => $this->mapContentItems($blocks, $section, $locale, true),
+                'items' => $mappedItems,
+                'blocks' => $mappedBlocks,
                 'allow_create' => (bool) ($section['allow_create'] ?? false),
                 'create_url' => $this->sectionCreateUrl($section),
             ];
         }
 
         $this->sections = $sections;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterMappedItems(array $items): array
+    {
+        $search = trim($this->search);
+        if ($search === '') {
+            return $items;
+        }
+
+        $needle = mb_strtolower($search);
+
+        return array_values(array_filter($items, function (array $item) use ($needle): bool {
+            $haystacks = [
+                (string) ($item['key'] ?? ''),
+                (string) ($item['label'] ?? ''),
+                (string) ($item['config_key'] ?? ''),
+                (string) ($item['model']->uuid ?? ''),
+            ];
+
+            foreach ((array) ($item['columns'] ?? []) as $value) {
+                $haystacks[] = is_scalar($value) ? (string) $value : '';
+            }
+
+            $joined = mb_strtolower(implode(' ', array_filter($haystacks, static fn ($value) => $value !== '')));
+
+            return str_contains($joined, $needle);
+        }));
     }
 
     private function mapContentItems(array $items, array $section, string $locale, bool $isBlock = false): array

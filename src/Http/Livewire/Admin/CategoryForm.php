@@ -2,11 +2,12 @@
 
 namespace Dominservice\LaravelCms\Http\Livewire\Admin;
 
-use Dominservice\LaravelCms\Models\Category;
 use Dominservice\LaravelCms\Services\CategorySaveService;
+use Dominservice\LaravelCms\Models\Category;
 use Dominservice\LaravelCms\Services\CmsStructuredSyncService;
 use Dominservice\LaravelCms\Support\CmsConfigStore;
 use Dominservice\LaravelCms\Support\CmsLocales;
+use Dominservice\LaravelCms\Support\CmsSectionResolver;
 use Dominservice\LaravelCms\Support\CmsTypeResolver;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -35,6 +36,10 @@ class CategoryForm extends Component
     public $avatar_small;
     public $poster;
     public $small_poster;
+    public ?string $selected_avatar_asset_uuid = null;
+    public ?string $selected_avatar_small_asset_uuid = null;
+    public ?string $selected_poster_asset_uuid = null;
+    public ?string $selected_small_poster_asset_uuid = null;
 
     public function mount(?Category $category = null): void
     {
@@ -42,7 +47,9 @@ class CategoryForm extends Component
         $this->fields = config('cms.admin.category.default_form_fields', []);
         $this->locales = CmsLocales::all();
         $this->types = CmsTypeResolver::categoryTypes();
-        $this->parents = Category::all()
+        $this->parents = Category::query()
+            ->when($this->category->exists, fn ($query) => $query->whereKeyNot($this->category->getKey()))
+            ->get()
             ->map(fn (Category $parent) => [
                 'uuid' => $parent->uuid,
                 'name' => $parent->translate(CmsLocales::default())?->name ?? $parent->uuid,
@@ -53,9 +60,8 @@ class CategoryForm extends Component
         $this->configKey = request()->query('config_key');
         $this->configHandle = request()->query('config_handle');
         $this->fixedType = request()->query('type');
-        $sectionConfig = $this->sectionKey
-            ? \Dominservice\LaravelCms\Support\CmsSectionResolver::categorySection($this->sectionKey)
-            : null;
+        $sectionConfig = $this->sectionKey ? CmsSectionResolver::categorySection($this->sectionKey) : null;
+
         if ($sectionConfig) {
             if (!$this->configKey && !empty($sectionConfig['config_key'])) {
                 $this->configKey = $sectionConfig['config_key'];
@@ -64,6 +70,7 @@ class CategoryForm extends Component
                 $this->fixedType = $sectionConfig['type'] ?? null;
             }
         }
+
         $this->type = $this->category->type
             ? $this->normalizeTypeValue($this->category->type)
             : ($this->fixedType ?: ($this->types[0] ?? 'default'));
@@ -75,6 +82,7 @@ class CategoryForm extends Component
             $translation = $this->category->translate($locale);
             $this->translations[$locale] = [
                 'name' => $translation?->name ?? '',
+                'slug' => $translation?->slug ?? '',
                 'description' => $translation?->description ?? '',
                 'meta_title' => $translation?->meta_title ?? '',
                 'meta_keywords' => $translation?->meta_keywords ?? '',
@@ -88,10 +96,7 @@ class CategoryForm extends Component
         $service = new CategorySaveService();
         $this->validate($service->validationRules());
 
-        $sectionConfig = $this->sectionKey
-            ? \Dominservice\LaravelCms\Support\CmsSectionResolver::categorySection($this->sectionKey)
-            : null;
-
+        $sectionConfig = $this->sectionKey ? CmsSectionResolver::categorySection($this->sectionKey) : null;
         $prepared = $service->prepareTranslatableData($this->translations);
         $data = $prepared['data'];
 
@@ -118,7 +123,10 @@ class CategoryForm extends Component
 
         app(CmsStructuredSyncService::class)->sync();
 
-        session()->flash('status', $this->category->wasRecentlyCreated ? __('cms::laravel_cms.category_created') : __('cms::laravel_cms.category_updated'));
+        session()->flash('status', $this->category->wasRecentlyCreated
+            ? __('cms::laravel_cms.category_created')
+            : __('cms::laravel_cms.category_updated'));
+
         $this->redirectRoute($this->adminRoute('category.index'));
     }
 
@@ -147,6 +155,17 @@ class CategoryForm extends Component
         }
         if ($this->small_poster) {
             $request->files->set('small_poster', $this->small_poster);
+        }
+
+        foreach ([
+            'selected_avatar_asset_uuid' => $this->selected_avatar_asset_uuid,
+            'selected_avatar_small_asset_uuid' => $this->selected_avatar_small_asset_uuid,
+            'selected_poster_asset_uuid' => $this->selected_poster_asset_uuid,
+            'selected_small_poster_asset_uuid' => $this->selected_small_poster_asset_uuid,
+        ] as $key => $value) {
+            if (is_string($value) && $value !== '') {
+                $request->request->set($key, $value);
+            }
         }
 
         return $request;
@@ -189,6 +208,7 @@ class CategoryForm extends Component
     private function adminRoute(string $name): string
     {
         $prefix = rtrim((string) config('cms.admin.route_name_prefix', 'cms.'), '.');
+
         return $prefix === '' ? $name : $prefix . '.' . $name;
     }
 }

@@ -16,6 +16,10 @@ class CategorySaveService
             'avatar_small' => 'nullable|file|mimes:mp4,mov,avi,jpeg,png,jpg,webp,webm',
             'poster' => 'nullable|file|mimes:jpeg,png,jpg,webp',
             'small_poster' => 'nullable|file|mimes:jpeg,png,jpg,webp',
+            'selected_avatar_asset_uuid' => 'nullable|uuid',
+            'selected_avatar_small_asset_uuid' => 'nullable|uuid',
+            'selected_poster_asset_uuid' => 'nullable|uuid',
+            'selected_small_poster_asset_uuid' => 'nullable|uuid',
         ];
     }
 
@@ -31,7 +35,8 @@ class CategorySaveService
                 continue;
             }
 
-            $data[$locale]['slug'] = Str::limit(str()->slug($data[$locale]['name']), 255, '');
+            $providedSlug = trim((string) ($data[$locale]['slug'] ?? ''));
+            $data[$locale]['slug'] = Str::limit($providedSlug !== '' ? str($providedSlug)->slug() : str()->slug($data[$locale]['name']), 255, '');
             $hasName = true;
         }
 
@@ -43,7 +48,8 @@ class CategorySaveService
         $selectedType = $request->input('media_type');
         $detectedType = ($request->file('avatar') && str_starts_with($request->file('avatar')->getMimeType(), 'video/'))
             || ($request->file('avatar_small') && str_starts_with($request->file('avatar_small')->getMimeType(), 'video/'))
-            ? 'video' : 'image';
+            ? 'video'
+            : 'image';
         $mediaType = $selectedType ?: $detectedType;
 
         if ($mediaType === 'video') {
@@ -54,20 +60,27 @@ class CategorySaveService
                     $names = $avatarFile->names;
                     $deleteName = function ($name) use ($diskKey) {
                         if (is_string($name) && $name !== '') {
-                            try { \Storage::disk($diskKey)->delete($name); } catch (\Throwable $e) {}
+                            try {
+                                \Storage::disk($diskKey)->delete($name);
+                            } catch (\Throwable $e) {
+                            }
                         }
                     };
+
                     if (is_array($names)) {
-                        foreach ($names as $v) {
-                            if (is_array($v)) {
-                                foreach ($v as $vv) { $deleteName($vv); }
+                        foreach ($names as $value) {
+                            if (is_array($value)) {
+                                foreach ($value as $nested) {
+                                    $deleteName($nested);
+                                }
                             } else {
-                                $deleteName($v);
+                                $deleteName($value);
                             }
                         }
                     } else {
                         $deleteName($names);
                     }
+
                     $avatarFile->delete();
                 }
             }
@@ -86,7 +99,6 @@ class CategorySaveService
             } elseif ($hasHd && $hasMobile) {
                 $videoFiles['hd'] = $request->file('avatar');
                 $videoFiles['mobile'] = $request->file('avatar_small');
-                $onlySizes = null;
             }
 
             if (!empty($videoFiles)) {
@@ -113,7 +125,6 @@ class CategorySaveService
                 $posterOnlySizes = ['small'];
             } elseif ($defaultPoster && $smallPoster) {
                 $posterPayload = ['default' => $defaultPoster, 'small' => $smallPoster];
-                $posterOnlySizes = null;
             }
 
             if (!empty($posterPayload)) {
@@ -125,6 +136,11 @@ class CategorySaveService
                     $posterOnlySizes,
                     true
                 );
+            } else {
+                $this->importSelectedImageAssets($category, [
+                    'default' => $request->input('selected_poster_asset_uuid'),
+                    'small' => $request->input('selected_small_poster_asset_uuid'),
+                ], 'video_poster');
             }
 
             return;
@@ -135,33 +151,48 @@ class CategorySaveService
             if ($videoFile) {
                 $diskKey = config('cms.disks.category');
                 if (is_array($videoFile->names)) {
-                    foreach ($videoFile->names as $name) { try { \Storage::disk($diskKey)->delete($name); } catch (\Throwable $e) {} }
+                    foreach ($videoFile->names as $name) {
+                        try {
+                            \Storage::disk($diskKey)->delete($name);
+                        } catch (\Throwable $e) {
+                        }
+                    }
                 } elseif (is_string($videoFile->names) && $videoFile->names) {
-                    try { \Storage::disk($diskKey)->delete($videoFile->names); } catch (\Throwable $e) {}
+                    try {
+                        \Storage::disk($diskKey)->delete($videoFile->names);
+                    } catch (\Throwable $e) {
+                    }
                 }
                 $videoFile->delete();
             }
 
             $posterFile = $category->files()->where('kind', 'video_poster')->first();
             if ($posterFile) {
-                $diskKeyImg = config('cms.disks.category');
+                $diskKey = config('cms.disks.category');
                 $names = $posterFile->names;
-                $deleteName = function ($name) use ($diskKeyImg) {
+                $deleteName = function ($name) use ($diskKey) {
                     if (is_string($name) && $name !== '') {
-                        try { \Storage::disk($diskKeyImg)->delete($name); } catch (\Throwable $e) {}
+                        try {
+                            \Storage::disk($diskKey)->delete($name);
+                        } catch (\Throwable $e) {
+                        }
                     }
                 };
+
                 if (is_array($names)) {
-                    foreach ($names as $v) {
-                        if (is_array($v)) {
-                            foreach ($v as $vv) { $deleteName($vv); }
+                    foreach ($names as $value) {
+                        if (is_array($value)) {
+                            foreach ($value as $nested) {
+                                $deleteName($nested);
+                            }
                         } else {
-                            $deleteName($v);
+                            $deleteName($value);
                         }
                     }
                 } else {
                     $deleteName($names);
                 }
+
                 $posterFile->delete();
             }
         }
@@ -182,7 +213,6 @@ class CategorySaveService
                 'default' => $request->file('avatar'),
                 'small' => $request->file('avatar_small'),
             ];
-            $imageOnlySizes = null;
         }
 
         if (!empty($imagePayload)) {
@@ -194,6 +224,76 @@ class CategorySaveService
                 $imageOnlySizes,
                 true
             );
+        } else {
+            $this->importSelectedImageAssets($category, [
+                'default' => $request->input('selected_avatar_asset_uuid'),
+                'small' => $request->input('selected_avatar_small_asset_uuid'),
+            ], 'avatar');
         }
+    }
+
+    private function importSelectedImageAssets(Category $category, array $selectedAssets, string $kind): void
+    {
+        $payload = [];
+        $onlySizes = null;
+
+        if (!empty($selectedAssets['default'])) {
+            $path = $this->temporaryPathFromMediaAsset((string) $selectedAssets['default']);
+            if ($path) {
+                $payload['default'] = $path;
+                $onlySizes = ['large'];
+            }
+        }
+
+        if (!empty($selectedAssets['small'])) {
+            $path = $this->temporaryPathFromMediaAsset((string) $selectedAssets['small']);
+            if ($path) {
+                $payload['small'] = $path;
+                $onlySizes = isset($payload['default']) ? null : ['small'];
+            }
+        }
+
+        if (empty($payload)) {
+            return;
+        }
+
+        \Dominservice\LaravelCms\Helpers\Media::uploadModelImageWithDefaults(
+            $category,
+            $payload,
+            $kind,
+            'image',
+            $onlySizes,
+            true
+        );
+    }
+
+    private function temporaryPathFromMediaAsset(string $uuid): ?string
+    {
+        if (!class_exists(\Dominservice\MediaKit\Models\MediaAsset::class)) {
+            return null;
+        }
+
+        $asset = \Dominservice\MediaKit\Models\MediaAsset::query()->find($uuid);
+        if (!$asset) {
+            return null;
+        }
+
+        $disk = \Storage::disk($asset->disk);
+        if (!$disk->exists($asset->original_path)) {
+            return null;
+        }
+
+        $binary = $disk->get($asset->original_path);
+        $tmp = tempnam(sys_get_temp_dir(), 'cms-media-');
+        if ($tmp === false) {
+            return null;
+        }
+
+        $ext = $asset->original_ext ?: pathinfo($asset->original_path, PATHINFO_EXTENSION) ?: 'bin';
+        $target = $tmp . '.' . $ext;
+        file_put_contents($target, $binary);
+        @unlink($tmp);
+
+        return $target;
     }
 }
