@@ -55,6 +55,7 @@ class ServiceProvider extends BaseServiceProvider
             __DIR__.'/../database/migrations/create_cms_content_links_table.php.stub' => $this->getMigrationFileName($filesystem, 'create_cms_content_links_table'),
             __DIR__.'/../database/migrations/add_order_column_content_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_order_column_content_table'),
             __DIR__.'/../database/migrations/add_meta_to_contents_table.php.stub' => $this->getMigrationFileName($filesystem, 'add_meta_to_contents_table'),
+            __DIR__.'/../database/migrations/alter_meta_description_length.php.stub' => $this->getMigrationFileName($filesystem, 'alter_meta_description_length'),
         ], 'migrations');
 
         $this->publishes([
