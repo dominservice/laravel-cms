@@ -33,6 +33,8 @@ return [
         'content_video' => 'public',
     ],
 
+    'meta_description_length' => 255,
+
     // Optional: map file "kind" (from cms_*_files.kind) or model kind/type to a different
     // file config key (and disk). Mapping priority: file.kind → model kind/type.
     // Examples:

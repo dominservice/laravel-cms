@@ -10,7 +10,7 @@ class ContentSaveService
 {
     public function validationRules(): array
     {
-        $rules = [
+        return [
             'media_type' => 'nullable|in:image,video',
             'avatar' => 'nullable|file|mimes:mp4,mov,avi,jpeg,png,jpg,webp,webm',
             'avatar_small' => 'nullable|file|mimes:mp4,mov,avi,jpeg,png,jpg,webp,webm',
@@ -21,13 +21,6 @@ class ContentSaveService
             'selected_poster_asset_uuid' => 'nullable|uuid',
             'selected_small_poster_asset_uuid' => 'nullable|uuid',
         ];
-
-        foreach ((new Content())->getLocales() as $locale) {
-            $rules[$locale . '.meta_description'] = 'nullable|string|max:160';
-            $rules['translations.' . $locale . '.meta_description'] = 'nullable|string|max:160';
-        }
-
-        return $rules;
     }
 
     public function prepareTranslatableData(array $data, string $type): array
@@ -45,6 +38,7 @@ class ContentSaveService
             $providedSlug = trim((string) ($data[$locale]['slug'] ?? ''));
             $data[$locale]['slug'] = Str::limit($providedSlug !== '' ? str($providedSlug)->slug() : str()->slug($data[$locale]['name']), 255, '');
             $data[$locale]['description'] = (string) ($data[$locale]['description'] ?? '');
+            $data[$locale]['meta_description'] = $this->truncateMetaDescription($data[$locale]['meta_description'] ?? null);
             $hasName = true;
         }
 
@@ -54,5 +48,19 @@ class ContentSaveService
     public function handleMedia(Content $content, Request $request, bool $isUpdate = false): void
     {
         (new \Dominservice\LaravelCms\Services\ContentSaveService())->handleMedia($content, $request, $isUpdate);
+    }
+
+    private function truncateMetaDescription(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return Str::limit((string) $value, $this->metaDescriptionLength(), '');
+    }
+
+    private function metaDescriptionLength(): int
+    {
+        return max(1, (int) config('cms.meta_description_length', 255));
     }
 }
