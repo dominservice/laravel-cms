@@ -10,7 +10,7 @@ class ContentSaveService
 {
     public function validationRules(): array
     {
-        return [
+        $rules = [
             'media_type' => 'nullable|in:image,video',
             'avatar' => 'nullable|file|mimes:mp4,mov,avi,jpeg,png,jpg,webp,webm',
             'avatar_small' => 'nullable|file|mimes:mp4,mov,avi,jpeg,png,jpg,webp,webm',
@@ -21,6 +21,13 @@ class ContentSaveService
             'selected_poster_asset_uuid' => 'nullable|uuid',
             'selected_small_poster_asset_uuid' => 'nullable|uuid',
         ];
+
+        foreach ((new Content())->getLocales() as $locale) {
+            $rules[$locale . '.meta_description'] = 'nullable|string|max:160';
+            $rules['translations.' . $locale . '.meta_description'] = 'nullable|string|max:160';
+        }
+
+        return $rules;
     }
 
     public function prepareTranslatableData(array $data, string $type): array
