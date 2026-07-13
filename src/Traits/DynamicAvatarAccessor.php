@@ -316,8 +316,8 @@ trait DynamicAvatarAccessor
         }
 
         if (!$file || !is_array($file->names)) {
-            // No new metadata -> try legacy filename directly
-            return $this->resolveLegacyAvatarUrl($diskKey);
+            // No explicit file metadata means no media should be rendered.
+            return null;
         }
 
         $names = $file->names;
@@ -391,8 +391,8 @@ trait DynamicAvatarAccessor
             }
         }
 
-        // Fallback: try legacy single-file avatar naming (prefix + uuid + .ext)
-        return $this->resolveLegacyAvatarUrl($diskKey);
+        // No implicit legacy fallback here: render only explicitly assigned media.
+        return null;
     }
 
     protected function getFileConfigKey(?string $forKind = null): string
@@ -587,8 +587,8 @@ trait DynamicAvatarAccessor
         }
 
         if (!$file || !is_array($file->names)) {
-            // Try legacy poster naming from v2
-            return $this->resolveLegacyPosterUrl($diskKey);
+            // No implicit legacy fallback here: render only explicitly assigned media.
+            return null;
         }
 
         $name = $file->names[$size] ?? null;
@@ -659,6 +659,10 @@ trait DynamicAvatarAccessor
         }
 
         try {
+            if ($kind === 'video_avatar') {
+                return \Dominservice\LaravelCms\Media\MediaKitBridge::videoUrl($this, $kind, $variant ?: null);
+            }
+
             return \Dominservice\LaravelCms\Media\MediaKitBridge::firstUrl($this, $kind, $variant ?: null);
         } catch (\Throwable $e) {
             return null;

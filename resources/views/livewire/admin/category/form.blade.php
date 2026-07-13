@@ -174,3 +174,7 @@
         </div>
     </div>
 </form>
+
+@push('scripts')
+    <script src="{{ mix('theme/admin/js/editorjs.js') }}" data-navigate-once></script>
+@endpush

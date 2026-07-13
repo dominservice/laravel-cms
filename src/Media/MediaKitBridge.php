@@ -6,12 +6,12 @@ use Dominservice\MediaKit\Models\MediaAsset;
 use Dominservice\MediaKit\Services\MediaUploader;
 use Dominservice\MediaKit\Support\Kinds\KindRegistry;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\File;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Route;
 
 class MediaKitBridge
 {
-    public static function uploadImage(Model $model, UploadedFile $file, string $kind = 'avatar', string $policy = 'replace', ?array $filters = null): Model
+    public static function uploadImage(Model $model, UploadedFile|File|string $file, string $kind = 'avatar', string $policy = 'replace', ?array $filters = null): Model
     {
         /** @var MediaUploader $uploader */
         $uploader = app(MediaUploader::class);
@@ -56,5 +56,33 @@ class MediaKitBridge
             ->filter()
             ->values()
             ->all();
+    }
+
+    public static function videoUrl(Model $model, string $kind = 'video_avatar', ?string $rendition = null): ?string
+    {
+        $collection = KindRegistry::collectionFor($kind, 'video');
+
+        /** @var MediaAsset|null $asset */
+        $asset = MediaAsset::query()
+            ->where('model_type', $model->getMorphClass())
+            ->where('model_id', $model->getKey())
+            ->where('collection', $collection)
+            ->latest()
+            ->first();
+
+        if (!$asset) {
+            return null;
+        }
+
+        $selectedRendition = $rendition ?: (KindRegistry::displayVariant($kind, 'hd') ?: 'hd');
+        $meta = (array) ($asset->meta ?? []);
+        $renditions = (array) ($meta['video_renditions'] ?? []);
+        $path = $renditions[$selectedRendition] ?? null;
+
+        if (!is_string($path) || $path === '') {
+            return null;
+        }
+
+        return \Storage::disk($asset->disk)->url($path);
     }
 }

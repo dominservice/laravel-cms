@@ -124,6 +124,7 @@
             </div>
             <div class="card-body">
                 @forelse($panel['sections'] as $section)
+                    @php($sectionRows = array_merge((array) ($section['rows'] ?? []), (array) ($section['block_rows'] ?? [])))
                     <div class="border rounded p-3 mb-4">
                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                             <div>
@@ -135,7 +136,7 @@
                             </a>
                         </div>
 
-                        @if(empty($section['rows']))
+                        @if($sectionRows === [])
                             <div class="text-muted">{{ __('cms::laravel_cms.no_assignable_items') }}</div>
                         @else
                             <div
@@ -143,7 +144,7 @@
                                 data-group-key="{{ $section['group_key'] }}"
                                 data-order-key="{{ $section['order_key'] }}"
                             >
-                                @foreach($section['rows'] as $row)
+                                @foreach($sectionRows as $row)
                                     <div class="row g-2 align-items-center border-bottom py-3 cms-settings-row" data-handle="{{ $row['handle'] }}">
                                         <div class="col-lg-4">
                                             <div class="d-flex align-items-center gap-2">

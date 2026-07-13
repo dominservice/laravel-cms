@@ -41,6 +41,7 @@ class Content extends Model
         Translatable,
         TranslatableLocales,
         SoftDeletes,
+        \Dominservice\MediaKit\Traits\HasMedia,
         \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor,
         \Dominservice\LaravelCms\Traits\HasContentLinks;
 

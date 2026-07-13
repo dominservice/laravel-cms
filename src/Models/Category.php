@@ -26,7 +26,7 @@ use Kalnoy\Nestedset\NodeTrait;
  */
 class Category extends Model
 {
-    use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes, NodeTrait, \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor;
+    use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes, NodeTrait, \Dominservice\MediaKit\Traits\HasMedia, \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor;
 
     protected $fillable = [
         'type',

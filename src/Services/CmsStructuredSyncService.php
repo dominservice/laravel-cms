@@ -40,9 +40,12 @@ class CmsStructuredSyncService
         if ($payload !== []) {
             $config->set($payload);
         }
-        $config->buildCache();
 
-        if ((bool) config('cms.admin.settings.sync.rebuild_routes', false)) {
+        if (! (bool) config('project.preview_build', false)) {
+            $config->buildCache();
+        }
+
+        if (! (bool) config('project.preview_build', false) && (bool) config('cms.admin.settings.sync.rebuild_routes', false)) {
             try {
                 Artisan::call('route:cache');
             } catch (\Throwable $e) {
