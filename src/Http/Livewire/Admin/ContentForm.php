@@ -45,6 +45,10 @@ class ContentForm extends Component
     public ?string $selected_avatar_small_asset_uuid = null;
     public ?string $selected_poster_asset_uuid = null;
     public ?string $selected_small_poster_asset_uuid = null;
+    public bool $clear_avatar_asset = false;
+    public bool $clear_avatar_small_asset = false;
+    public bool $clear_poster_asset = false;
+    public bool $clear_small_poster_asset = false;
     public array $schemaFields = [];
     public array $metaData = [];
     public array $metaTranslations = [];
@@ -94,6 +98,7 @@ class ContentForm extends Component
         $this->external_url = $this->content->external_url;
         $this->category_uuid = $this->content->categories->pluck('uuid')->first();
         $this->media_type = $this->content->video_path ? 'video' : 'image';
+        $this->hydrateSelectedMedia();
 
         $existingMeta = $this->normalizeMeta($this->content->meta);
         foreach ($this->schemaFields as $fieldKey => $schema) {
@@ -190,6 +195,10 @@ class ContentForm extends Component
             'media_type' => $this->media_type,
             'avatar_kind' => null,
             'avatar_type' => null,
+            'clear_avatar_asset' => $this->clear_avatar_asset,
+            'clear_avatar_small_asset' => $this->clear_avatar_small_asset,
+            'clear_poster_asset' => $this->clear_poster_asset,
+            'clear_small_poster_asset' => $this->clear_small_poster_asset,
         ], static fn ($value) => $value !== null);
 
         $request = Request::create('/', 'POST', $payload);
@@ -218,6 +227,32 @@ class ContentForm extends Component
         }
 
         return $request;
+    }
+
+    private function hydrateSelectedMedia(): void
+    {
+        if (! $this->content->exists || ! method_exists($this->content, 'media')) {
+            return;
+        }
+
+        $assets = $this->content->media()->get()->keyBy('collection');
+        foreach ([
+            'avatar' => 'selected_avatar_asset_uuid',
+            'avatar_small' => 'selected_avatar_small_asset_uuid',
+            'video_poster' => 'selected_poster_asset_uuid',
+            'video_poster_small' => 'selected_small_poster_asset_uuid',
+        ] as $kind => $property) {
+            $collection = class_exists(\Dominservice\MediaKit\Support\Kinds\KindRegistry::class)
+                ? (string) \Dominservice\MediaKit\Support\Kinds\KindRegistry::collectionFor($kind, $kind)
+                : $kind;
+            $asset = $assets->get($collection);
+            if (! $asset) {
+                continue;
+            }
+
+            $sourceUuid = trim((string) data_get($asset->meta, '_cloned_from_asset_uuid', ''));
+            $this->{$property} = $sourceUuid !== '' ? $sourceUuid : $asset->uuid;
+        }
     }
 
     private function normalizeTypeValue(mixed $type): string

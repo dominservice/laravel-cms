@@ -21,6 +21,10 @@ class ContentSaveService
             'selected_avatar_small_asset_uuid' => 'nullable|uuid',
             'selected_poster_asset_uuid' => 'nullable|uuid',
             'selected_small_poster_asset_uuid' => 'nullable|uuid',
+            'clear_avatar_asset' => 'nullable|boolean',
+            'clear_avatar_small_asset' => 'nullable|boolean',
+            'clear_poster_asset' => 'nullable|boolean',
+            'clear_small_poster_asset' => 'nullable|boolean',
         ];
     }
 
@@ -66,9 +70,17 @@ class ContentSaveService
             $this->syncVideoRenditions($content, $request);
             $this->syncImageMedia(
                 $content,
-                $request->file('poster') ?: $request->file('small_poster'),
-                (string) ($request->input('selected_poster_asset_uuid') ?: $request->input('selected_small_poster_asset_uuid')),
-                'video_poster'
+                $request->file('poster'),
+                (string) $request->input('selected_poster_asset_uuid'),
+                'video_poster',
+                $request->boolean('clear_poster_asset')
+            );
+            $this->syncImageMedia(
+                $content,
+                $request->file('small_poster'),
+                (string) $request->input('selected_small_poster_asset_uuid'),
+                'video_poster_small',
+                $request->boolean('clear_small_poster_asset')
             );
 
             return;
@@ -86,9 +98,17 @@ class ContentSaveService
 
         $this->syncImageMedia(
             $content,
-            $request->file('avatar') ?: $request->file('avatar_small'),
-            (string) ($request->input('selected_avatar_asset_uuid') ?: $request->input('selected_avatar_small_asset_uuid')),
-            (string) ($request->input('avatar_kind') ?: 'avatar')
+            $request->file('avatar'),
+            (string) $request->input('selected_avatar_asset_uuid'),
+            (string) ($request->input('avatar_kind') ?: 'avatar'),
+            $request->boolean('clear_avatar_asset')
+        );
+        $this->syncImageMedia(
+            $content,
+            $request->file('avatar_small'),
+            (string) $request->input('selected_avatar_small_asset_uuid'),
+            'avatar_small',
+            $request->boolean('clear_avatar_small_asset')
         );
     }
 
@@ -152,8 +172,15 @@ class ContentSaveService
         }
     }
 
-    private function syncImageMedia(Content $content, mixed $source, string $selectedAssetUuid, string $kind): void
+    private function syncImageMedia(Content $content, mixed $source, string $selectedAssetUuid, string $kind, bool $clear = false): void
     {
+        if ($clear && $source === null && $selectedAssetUuid === '') {
+            $this->deleteLegacyFileRecord($content, $kind, (string) config('cms.disks.content'));
+            $this->clearMediaCollection($content, $kind);
+
+            return;
+        }
+
         if ($source === null && $selectedAssetUuid === '') {
             return;
         }
@@ -187,6 +214,11 @@ class ContentSaveService
         }
 
         $collection = (string) (\Dominservice\MediaKit\Support\Kinds\KindRegistry::collectionFor($kind, $kind));
+        $current = $content->media()->where('collection', $collection)->first();
+        if ($current && ($current->uuid === $asset->uuid || data_get($current->meta, '_cloned_from_asset_uuid') === $asset->uuid)) {
+            return true;
+        }
+
         $content->attachExistingMedia($asset, $collection, 'replace');
 
         return true;
