@@ -5,7 +5,7 @@
 @php($editorJsFields = array_keys((array) ($editorJsConfig['fields'] ?? [])))
 @php($editorJsProfiles = (array) ($editorJsConfig['profiles'] ?? []))
 
-<form wire:submit.prevent="save" enctype="multipart/form-data">
+<form wire:submit="save" enctype="multipart/form-data">
     @if($errors->any())
         <div class="{{ $cmsUi['card'] ?? 'card' }}">
             <div class="{{ $cmsUi['card_body'] ?? 'card-body' }}">
@@ -170,7 +170,7 @@
         </div>
         <div class="{{ $cmsUi['card_footer'] ?? 'card-footer text-end' }}">
             <a class="{{ $cmsUi['button_secondary'] ?? 'btn btn-outline-secondary' }}" href="{{ route($routePrefix . 'category.index') }}" wire:navigate>{{ __('cms::laravel_cms.cancel') }}</a>
-            <button type="submit" class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" wire:loading.attr="disabled">{{ __('cms::laravel_cms.save') }}</button>
+            <button type="submit" class="{{ $cmsUi['button'] ?? 'btn btn-primary' }}" wire:loading.attr="disabled" wire:target="save">{{ __('cms::laravel_cms.save') }}</button>
         </div>
     </div>
 </form>

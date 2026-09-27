@@ -29,4 +29,16 @@ final class LivewireFourCompatibilityTest extends TestCase
             self::assertInstanceOf($class, Livewire::new($name));
         }
     }
+
+    public function test_forms_use_livewire_four_submit_handling(): void
+    {
+        foreach (['content', 'category'] as $form) {
+            $template = file_get_contents(dirname(__DIR__, 2)."/resources/views/livewire/admin/{$form}/form.blade.php");
+
+            self::assertIsString($template);
+            self::assertStringContainsString('wire:submit="save"', $template);
+            self::assertStringContainsString('wire:target="save"', $template);
+            self::assertStringNotContainsString('wire:submit.prevent="save"', $template);
+        }
+    }
 }
