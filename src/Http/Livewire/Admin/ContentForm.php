@@ -4,12 +4,14 @@ namespace Dominservice\LaravelCms\Http\Livewire\Admin;
 
 use Dominservice\LaravelCms\Models\Category;
 use Dominservice\LaravelCms\Models\Content;
-use Dominservice\LaravelCms\Services\ContentSaveService;
 use Dominservice\LaravelCms\Services\CmsStructuredSyncService;
+use Dominservice\LaravelCms\Services\ContentSaveService;
 use Dominservice\LaravelCms\Support\CmsConfigStore;
+use Dominservice\LaravelCms\Support\CmsFieldSchema;
 use Dominservice\LaravelCms\Support\CmsLocales;
 use Dominservice\LaravelCms\Support\CmsSectionResolver;
 use Dominservice\LaravelCms\Support\CmsTypeResolver;
+use Dominservice\MediaKit\Support\Kinds\KindRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\View\View;
@@ -21,36 +23,67 @@ class ContentForm extends Component
     use WithFileUploads;
 
     public Content $content;
+
     public ?string $sectionKey = null;
+
     public ?string $blockKey = null;
+
     public ?string $configKey = null;
+
     public ?string $configHandle = null;
+
     public array $fields = [];
+
     public array $locales = [];
+
     public array $types = [];
+
     public ?string $fixedType = null;
+
     public array $categories = [];
+
     public array $translations = [];
+
     public ?string $category_uuid = null;
+
     public ?string $type = null;
+
     public bool $status = false;
+
     public bool $is_nofollow = false;
+
     public ?string $external_url = null;
+
     public ?string $media_type = null;
+
     public $avatar;
+
     public $avatar_small;
+
     public $poster;
+
     public $small_poster;
+
     public ?string $selected_avatar_asset_uuid = null;
+
     public ?string $selected_avatar_small_asset_uuid = null;
+
     public ?string $selected_poster_asset_uuid = null;
+
     public ?string $selected_small_poster_asset_uuid = null;
+
     public bool $clear_avatar_asset = false;
+
     public bool $clear_avatar_small_asset = false;
+
     public bool $clear_poster_asset = false;
+
     public bool $clear_small_poster_asset = false;
+
     public array $schemaFields = [];
+
     public array $metaData = [];
+
     public array $metaTranslations = [];
 
     public function mount(?string $section = null, ?string $blockKey = null, ?Content $content = null): void
@@ -58,7 +91,7 @@ class ContentForm extends Component
         $this->sectionKey = $section ?? request()->query('section');
         $this->blockKey = $blockKey ?? request()->query('block');
 
-        $this->content = $content ?? new Content();
+        $this->content = $content ?? new Content;
         $sectionConfig = $this->sectionKey ? CmsSectionResolver::contentSection($this->sectionKey) : null;
         $blockConfig = ($this->blockKey && $sectionConfig) ? (($sectionConfig['blocks'][$this->blockKey] ?? null)) : null;
 
@@ -72,14 +105,14 @@ class ContentForm extends Component
         if ($queryType && $hasScopedTypeContext) {
             $this->fixedType = (string) $queryType;
         }
-        if (!$this->configKey) {
+        if (! $this->configKey) {
             $this->configKey = $blockConfig['config_key'] ?? $sectionConfig['config_key'] ?? null;
         }
 
         $this->fields = $sectionConfig
             ? CmsSectionResolver::formFields($sectionConfig, 'content')
             : config('cms.admin.content.default_form_fields', []);
-        $this->schemaFields = $this->resolveSchemaFields($sectionConfig, $blockConfig);
+        $this->schemaFields = CmsFieldSchema::resolve($sectionConfig, $blockConfig);
         $this->locales = CmsLocales::all();
         $this->types = CmsTypeResolver::contentTypes();
         $this->categories = Category::all()
@@ -102,17 +135,17 @@ class ContentForm extends Component
 
         $existingMeta = $this->normalizeMeta($this->content->meta);
         foreach ($this->schemaFields as $fieldKey => $schema) {
-            if (!empty($schema['translatable'])) {
+            if (! empty($schema['translatable'])) {
                 foreach ($this->locales as $locale) {
-                    $default = $this->resolveSchemaDefault($schema, $locale);
-                    $this->metaTranslations[$locale][$fieldKey] = $this->normalizeSchemaValue(
-                        Arr::get($existingMeta, '_translations.' . $locale . '.' . $fieldKey, $default),
+                    $default = CmsFieldSchema::defaultValue($schema, $locale);
+                    $this->metaTranslations[$locale][$fieldKey] = CmsFieldSchema::normalizeValue(
+                        Arr::get($existingMeta, '_translations.'.$locale.'.'.$fieldKey, $default),
                         (string) ($schema['type'] ?? 'text')
                     );
                 }
             } else {
-                $default = $this->resolveSchemaDefault($schema);
-                $this->metaData[$fieldKey] = $this->normalizeSchemaValue(
+                $default = CmsFieldSchema::defaultValue($schema);
+                $this->metaData[$fieldKey] = CmsFieldSchema::normalizeValue(
                     Arr::get($existingMeta, $fieldKey, $default),
                     (string) ($schema['type'] ?? 'text')
                 );
@@ -136,8 +169,11 @@ class ContentForm extends Component
 
     public function save(): void
     {
-        $service = new ContentSaveService();
-        $this->validate($service->validationRules());
+        $service = new ContentSaveService;
+        $this->validate(array_merge(
+            $service->validationRules(),
+            CmsFieldSchema::validationRules($this->schemaFields, $this->locales)
+        ));
 
         $sectionConfig = $this->sectionKey ? CmsSectionResolver::contentSection($this->sectionKey) : null;
         $blockConfig = ($this->blockKey && $sectionConfig) ? (($sectionConfig['blocks'][$this->blockKey] ?? null)) : null;
@@ -146,8 +182,9 @@ class ContentForm extends Component
         $prepared = $service->prepareTranslatableData($this->translations, $type);
         $data = $prepared['data'];
 
-        if (!$prepared['hasName']) {
+        if (! $prepared['hasName']) {
             $this->addError('translations', __('cms::laravel_cms.name_required_one_language'));
+
             return;
         }
 
@@ -170,7 +207,7 @@ class ContentForm extends Component
             $this->content->categories()->detach();
         }
 
-        $service->handleMedia($this->content, $this->buildMediaRequest(), !$this->content->wasRecentlyCreated);
+        $service->handleMedia($this->content, $this->buildMediaRequest(), ! $this->content->wasRecentlyCreated);
 
         if ($sectionConfig) {
             $this->persistConfig($sectionConfig, $this->content, $this->configKey, $this->configHandle, $blockConfig);
@@ -242,8 +279,8 @@ class ContentForm extends Component
             'video_poster' => 'selected_poster_asset_uuid',
             'video_poster_small' => 'selected_small_poster_asset_uuid',
         ] as $kind => $property) {
-            $collection = class_exists(\Dominservice\MediaKit\Support\Kinds\KindRegistry::class)
-                ? (string) \Dominservice\MediaKit\Support\Kinds\KindRegistry::collectionFor($kind, $kind)
+            $collection = class_exists(KindRegistry::class)
+                ? (string) KindRegistry::collectionFor($kind, $kind)
                 : $kind;
             $asset = $assets->get($collection);
             if (! $asset) {
@@ -268,51 +305,23 @@ class ContentForm extends Component
         return (string) $type;
     }
 
-    private function resolveSchemaFields(?array $sectionConfig, ?array $blockConfig): array
-    {
-        $configured = $blockConfig['schema_fields'] ?? $sectionConfig['schema_fields'] ?? [];
-        $resolved = [];
-
-        foreach ((array) $configured as $fieldKey => $fieldSchema) {
-            if (is_int($fieldKey) && is_string($fieldSchema)) {
-                $fieldKey = $fieldSchema;
-                $fieldSchema = [];
-            }
-
-            if (!is_string($fieldKey) || $fieldKey === '') {
-                continue;
-            }
-
-            $schema = is_array($fieldSchema) ? $fieldSchema : [];
-            $resolved[$fieldKey] = array_merge([
-                'label' => ucfirst(str_replace('_', ' ', $fieldKey)),
-                'type' => 'text',
-                'translatable' => false,
-                'options' => [],
-                'default' => null,
-                'help' => null,
-            ], $schema);
-        }
-
-        return $resolved;
-    }
-
     private function buildMetaPayload(): array
     {
         $meta = $this->normalizeMeta($this->content->meta);
 
         foreach ($this->schemaFields as $fieldKey => $schema) {
             $fieldType = (string) ($schema['type'] ?? 'text');
-            if (!empty($schema['translatable'])) {
+            if (! empty($schema['translatable'])) {
                 foreach ($this->locales as $locale) {
-                    $value = $this->metaTranslations[$locale][$fieldKey] ?? $this->resolveSchemaDefault($schema, $locale);
-                    Arr::set($meta, '_translations.' . $locale . '.' . $fieldKey, $this->normalizeSchemaValue($value, $fieldType));
+                    $value = $this->metaTranslations[$locale][$fieldKey] ?? CmsFieldSchema::defaultValue($schema, $locale);
+                    Arr::set($meta, '_translations.'.$locale.'.'.$fieldKey, CmsFieldSchema::normalizeValue($value, $fieldType));
                 }
+
                 continue;
             }
 
-            $value = $this->metaData[$fieldKey] ?? $this->resolveSchemaDefault($schema);
-            Arr::set($meta, $fieldKey, $this->normalizeSchemaValue($value, $fieldType));
+            $value = $this->metaData[$fieldKey] ?? CmsFieldSchema::defaultValue($schema);
+            Arr::set($meta, $fieldKey, CmsFieldSchema::normalizeValue($value, $fieldType));
         }
 
         return $meta;
@@ -331,41 +340,20 @@ class ContentForm extends Component
         return [];
     }
 
-    private function resolveSchemaDefault(array $schema, ?string $locale = null): mixed
-    {
-        $default = $schema['default'] ?? null;
-        if ($locale !== null && is_array($default)) {
-            return $default[$locale] ?? null;
-        }
-
-        return $default;
-    }
-
-    private function normalizeSchemaValue(mixed $value, string $type): mixed
-    {
-        return match ($type) {
-            'checkbox', 'boolean', 'toggle' => (bool) $value,
-            'number' => is_numeric($value) ? $value + 0 : null,
-            'repeater' => is_array($value) ? array_values($value) : [],
-            'editorjs', 'textarea', 'text', 'url', 'select' => is_scalar($value) || $value === null ? (string) ($value ?? '') : '',
-            default => $value,
-        };
-    }
-
     public function addRepeaterItem(string $fieldKey, ?string $locale = null): void
     {
         $schema = $this->schemaFields[$fieldKey] ?? null;
-        if (!is_array($schema) || (string) ($schema['type'] ?? '') !== 'repeater') {
+        if (! is_array($schema) || (string) ($schema['type'] ?? '') !== 'repeater') {
             return;
         }
 
-        $item = $this->defaultRepeaterItem($schema, $locale);
+        $item = CmsFieldSchema::defaultRepeaterItem($schema, $locale);
 
-        if ($locale !== null && !empty($schema['translatable'])) {
-            if (!empty($schema['synchronize_structure'])) {
+        if ($locale !== null && ! empty($schema['translatable'])) {
+            if (! empty($schema['synchronize_structure'])) {
                 foreach ($this->locales as $candidateLocale) {
                     $rows = $this->metaTranslations[$candidateLocale][$fieldKey] ?? [];
-                    $rows[] = $this->defaultRepeaterItem($schema, $candidateLocale);
+                    $rows[] = CmsFieldSchema::defaultRepeaterItem($schema, $candidateLocale);
                     $this->metaTranslations[$candidateLocale][$fieldKey] = array_values($rows);
                 }
 
@@ -375,6 +363,7 @@ class ContentForm extends Component
             $rows = $this->metaTranslations[$locale][$fieldKey] ?? [];
             $rows[] = $item;
             $this->metaTranslations[$locale][$fieldKey] = array_values($rows);
+
             return;
         }
 
@@ -386,12 +375,12 @@ class ContentForm extends Component
     public function removeRepeaterItem(string $fieldKey, int $index, ?string $locale = null): void
     {
         $schema = $this->schemaFields[$fieldKey] ?? null;
-        if (!is_array($schema) || (string) ($schema['type'] ?? '') !== 'repeater') {
+        if (! is_array($schema) || (string) ($schema['type'] ?? '') !== 'repeater') {
             return;
         }
 
-        if ($locale !== null && !empty($schema['translatable'])) {
-            if (!empty($schema['synchronize_structure'])) {
+        if ($locale !== null && ! empty($schema['translatable'])) {
+            if (! empty($schema['synchronize_structure'])) {
                 $sourceRows = $this->metaTranslations[$locale][$fieldKey] ?? [];
                 unset($sourceRows[$index]);
                 $sourceRows = array_values($sourceRows);
@@ -419,6 +408,7 @@ class ContentForm extends Component
             $rows = $this->metaTranslations[$locale][$fieldKey] ?? [];
             unset($rows[$index]);
             $this->metaTranslations[$locale][$fieldKey] = array_values($rows);
+
             return;
         }
 
@@ -427,47 +417,30 @@ class ContentForm extends Component
         $this->metaData[$fieldKey] = array_values($rows);
     }
 
-    private function defaultRepeaterItem(array $schema, ?string $locale = null): array
-    {
-        $defaults = [];
-
-        foreach ((array) ($schema['fields'] ?? []) as $subFieldKey => $subFieldSchema) {
-            if (!is_string($subFieldKey) || $subFieldKey === '') {
-                continue;
-            }
-
-            $subSchema = is_array($subFieldSchema) ? $subFieldSchema : [];
-            $defaults[$subFieldKey] = $this->normalizeSchemaValue(
-                $this->resolveSchemaDefault($subSchema, $locale),
-                (string) ($subSchema['type'] ?? 'text')
-            );
-        }
-
-        return $defaults;
-    }
-
     private function persistConfig(array $section, Content $content, ?string $configKey, ?string $configHandle, ?array $blockConfig): void
     {
-        if ($blockConfig && !empty($blockConfig['config_key'])) {
+        if ($blockConfig && ! empty($blockConfig['config_key'])) {
             CmsConfigStore::set($blockConfig['config_key'], $content->uuid);
+
             return;
         }
 
         if ($configKey) {
             CmsConfigStore::set($configKey, $content->uuid);
+
             return;
         }
 
-        if (!empty($section['group_key'])) {
+        if (! empty($section['group_key'])) {
             $itemKey = $section['item_key'] ?? 'page_uuid';
             $handle = $configHandle ?: CmsConfigStore::generateHandle($content->name ?? $content->uuid, $section['group_key'], $itemKey);
-            $baseKey = $section['group_key'] . '.' . $handle;
+            $baseKey = $section['group_key'].'.'.$handle;
 
             $payload = [];
             foreach ((array) ($section['defaults'] ?? []) as $key => $value) {
-                $payload[$baseKey . '.' . $key] = $value;
+                $payload[$baseKey.'.'.$key] = $value;
             }
-            $payload[$baseKey . '.' . $itemKey] = $content->uuid;
+            $payload[$baseKey.'.'.$itemKey] = $content->uuid;
             CmsConfigStore::setMany($payload);
         }
     }
@@ -475,6 +448,7 @@ class ContentForm extends Component
     private function adminRoute(string $name): string
     {
         $prefix = rtrim((string) config('cms.admin.route_name_prefix', 'cms.'), '.');
-        return $prefix === '' ? $name : $prefix . '.' . $name;
+
+        return $prefix === '' ? $name : $prefix.'.'.$name;
     }
 }

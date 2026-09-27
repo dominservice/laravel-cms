@@ -386,6 +386,10 @@ return [
         'content' => [
             'include_all' => true,
             'default_columns' => ['uuid', 'name', 'type', 'status'],
+            'schema_presets' => [
+                // Reusable groups of schema_fields can be defined here and
+                // attached to a section or block through schema_presets.
+            ],
             'default_form_fields' => [
                 'type',
                 'name',

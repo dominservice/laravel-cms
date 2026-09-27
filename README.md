@@ -11,8 +11,9 @@
 <p align="center">
   <a href="https://packagist.org/packages/dominservice/laravel-cms"><img src="https://img.shields.io/packagist/v/dominservice/laravel-cms.svg" alt="Packagist"></a>
   <a href="https://packagist.org/packages/dominservice/laravel-cms/stats"><img src="https://img.shields.io/packagist/dt/dominservice/laravel-cms.svg" alt="Downloads"></a>
-  <a href="#"><img src="https://img.shields.io/badge/PHP-8.2%2B-777bb3" alt="PHP 8.2+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Laravel-9%E2%80%9313-ff2d20" alt="Laravel 9–13"></a>
+  <a href="#"><img src="https://img.shields.io/badge/PHP-8.3%2B-777bb3" alt="PHP 8.3+"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Laravel-13-ff2d20" alt="Laravel 13"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Livewire-4-fb70a9" alt="Livewire 4"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
@@ -40,6 +41,17 @@ It gives you:
 - media slots for desktop/mobile image and video handling,
 - direct integration with `dominservice/laravel-media-kit`, including reusable library assets,
 - publishable views and language files.
+
+## Requirements
+
+The 5.x package line targets the current DominPress application stack:
+
+- PHP 8.3 or newer,
+- Laravel 13.32 or newer,
+- Livewire 4.4 or newer,
+- `kalnoy/nestedset` 7.x.
+
+Laravel 9–12 and Livewire 3 remain supported by the previous 4.x package line. They are not supported by 5.x because the current `kalnoy/nestedset` release requires Illuminate 13.
 
 ## Installation
 
@@ -102,13 +114,61 @@ Typical use cases:
 
 Block-specific configuration is stored in `meta`, so the host project can render frontend components using its own Blade views and CSS.
 
-Supported patterns include:
-- simple scalar fields,
-- translatable fields,
-- visual variants,
-- repeater fields,
-- structured button/link configuration,
-- Editor.js rich text payloads.
+The Livewire form renders and validates these fields automatically. Adding a field does not require a migration, controller, Livewire component or another Bootstrap/Tailwind template:
+
+```php
+'admin' => [
+    'content' => [
+        'schema_presets' => [
+            'cta' => [
+                'cta_label' => [
+                    'type' => 'text',
+                    'translatable' => true,
+                ],
+                'cta_url' => 'url',
+            ],
+        ],
+        'sections' => [
+            'home' => [
+                'label' => 'Home',
+                'blocks' => [
+                    'hero' => [
+                        'type' => 'block',
+                        'schema_presets' => ['cta'],
+                        'schema_fields' => [
+                            'eyebrow' => [
+                                'translatable' => true,
+                                'required' => true,
+                            ],
+                            'alignment' => [
+                                'type' => 'select',
+                                'options' => [
+                                    'left' => 'Left',
+                                    'center' => 'Center',
+                                ],
+                                'default' => 'left',
+                            ],
+                            'metrics' => [
+                                'type' => 'repeater',
+                                'translatable' => true,
+                                'synchronize_structure' => true,
+                                'fields' => [
+                                    'value' => ['required' => true],
+                                    'label' => 'text',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ],
+],
+```
+
+Supported field types are `text`, `textarea`, `editorjs`, `url`, `email`, `number`, `date`, `datetime-local`, `select`, `checkbox`/`boolean`/`toggle` and one-level `repeater`. A string value is shorthand for a type, for example `'cta_url' => 'url'`. Use `required`, `default`, `placeholder`, `help`, `options` and `rules` to customize a field. Explicit `rules` replace the inferred validation rules.
+
+Non-translatable values are stored directly in `Content::meta`; translated values are stored under `meta._translations.{locale}`. This schema layer changes form generation only and does not replace the host project's theme or public Blade components.
 
 ## Media Integration
 
@@ -211,6 +271,13 @@ When upgrading existing projects:
 - republish views only if you want the new default UI,
 - republish migrations only when needed,
 - verify `media-kit` config and routes if you use the shared media library.
+
+### Upgrading from 4.x to 5.x
+
+- upgrade the host application to PHP 8.3+, Laravel 13.32+ and Livewire 4.4+ first,
+- review published Livewire views before replacing them with the package defaults,
+- if the host application customizes `Livewire::setUpdateRoute()`, update its callback to accept both `$handle` and `$path`, then register the route using the hash-aware `$path` supplied by Livewire 4,
+- clear application caches after updating the package and run the host application's CMS and browser-facing regression tests.
 
 ## License
 

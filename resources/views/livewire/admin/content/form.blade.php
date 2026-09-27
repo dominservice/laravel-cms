@@ -169,8 +169,34 @@
                                 <textarea id="meta_description_{{ $locale }}" wire:model.defer="translations.{{ $locale }}.meta_description" class="{{ $cmsUi['textarea'] ?? 'form-control' }}"></textarea>
                             </div>
                         @endif
+
+                        @foreach($schemaFields as $fieldKey => $schema)
+                            @if(!empty($schema['translatable']))
+                                @include('cms::livewire.admin.content.schema-field', [
+                                    'fieldKey' => $fieldKey,
+                                    'schema' => $schema,
+                                    'modelPath' => 'metaTranslations.' . $locale . '.' . $fieldKey,
+                                    'value' => $metaTranslations[$locale][$fieldKey] ?? null,
+                                    'locale' => $locale,
+                                    'fieldId' => 'schema_' . $fieldKey . '_' . $locale,
+                                ])
+                            @endif
+                        @endforeach
                     </div>
                 </div>
+            @endforeach
+
+            @foreach($schemaFields as $fieldKey => $schema)
+                @if(empty($schema['translatable']))
+                    @include('cms::livewire.admin.content.schema-field', [
+                        'fieldKey' => $fieldKey,
+                        'schema' => $schema,
+                        'modelPath' => 'metaData.' . $fieldKey,
+                        'value' => $metaData[$fieldKey] ?? null,
+                        'locale' => null,
+                        'fieldId' => 'schema_' . $fieldKey,
+                    ])
+                @endif
             @endforeach
 
             @if(in_array('status', $fields, true))
