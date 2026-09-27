@@ -362,6 +362,16 @@ class ContentForm extends Component
         $item = $this->defaultRepeaterItem($schema, $locale);
 
         if ($locale !== null && !empty($schema['translatable'])) {
+            if (!empty($schema['synchronize_structure'])) {
+                foreach ($this->locales as $candidateLocale) {
+                    $rows = $this->metaTranslations[$candidateLocale][$fieldKey] ?? [];
+                    $rows[] = $this->defaultRepeaterItem($schema, $candidateLocale);
+                    $this->metaTranslations[$candidateLocale][$fieldKey] = array_values($rows);
+                }
+
+                return;
+            }
+
             $rows = $this->metaTranslations[$locale][$fieldKey] ?? [];
             $rows[] = $item;
             $this->metaTranslations[$locale][$fieldKey] = array_values($rows);
@@ -381,6 +391,31 @@ class ContentForm extends Component
         }
 
         if ($locale !== null && !empty($schema['translatable'])) {
+            if (!empty($schema['synchronize_structure'])) {
+                $sourceRows = $this->metaTranslations[$locale][$fieldKey] ?? [];
+                unset($sourceRows[$index]);
+                $sourceRows = array_values($sourceRows);
+
+                // Clearing the source list is an unambiguous request to remove
+                // the whole repeater, including locales whose structure had
+                // already drifted before synchronization was enabled.
+                if ($sourceRows === []) {
+                    foreach ($this->locales as $candidateLocale) {
+                        $this->metaTranslations[$candidateLocale][$fieldKey] = [];
+                    }
+
+                    return;
+                }
+
+                foreach ($this->locales as $candidateLocale) {
+                    $rows = $this->metaTranslations[$candidateLocale][$fieldKey] ?? [];
+                    unset($rows[$index]);
+                    $this->metaTranslations[$candidateLocale][$fieldKey] = array_values($rows);
+                }
+
+                return;
+            }
+
             $rows = $this->metaTranslations[$locale][$fieldKey] ?? [];
             unset($rows[$index]);
             $this->metaTranslations[$locale][$fieldKey] = array_values($rows);
