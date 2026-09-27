@@ -9,24 +9,11 @@ use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryIndex;
 use Dominservice\LaravelCms\Http\Livewire\Admin\ContentForm;
 use Dominservice\LaravelCms\Http\Livewire\Admin\ContentIndex;
 use Dominservice\LaravelCms\Http\Livewire\Admin\SettingsDashboard;
-use Dominservice\LaravelCms\ServiceProvider;
 use Livewire\Livewire;
-use Livewire\LivewireServiceProvider;
-use Orchestra\Testbench\TestCase;
+use Tests\TestCase;
 
 final class LivewireFourCompatibilityTest extends TestCase
 {
-    /**
-     * @return array<class-string>
-     */
-    protected function getPackageProviders($app): array
-    {
-        return [
-            LivewireServiceProvider::class,
-            ServiceProvider::class,
-        ];
-    }
-
     public function test_package_registers_its_livewire_four_components(): void
     {
         $components = [

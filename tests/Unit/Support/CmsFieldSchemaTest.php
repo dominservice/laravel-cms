@@ -4,7 +4,7 @@ namespace Tests\Unit\Support;
 
 use Dominservice\LaravelCms\Support\CmsFieldSchema;
 use Illuminate\Validation\Rules\In;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 final class CmsFieldSchemaTest extends TestCase
 {

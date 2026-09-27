@@ -2,15 +2,13 @@
 
 namespace Dominservice\LaravelCms\Models;
 
-
 use Astrotomic\Translatable\Translatable;
+use Carbon\Carbon;
 use Dominservice\LaravelCms\Traits\HasUuidPrimary;
 use Dominservice\LaravelCms\Traits\TranslatableLocales;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
-use Illuminate\Support\Facades\Storage;
 use Kalnoy\Nestedset\NodeTrait;
 
 /**
@@ -20,13 +18,13 @@ use Kalnoy\Nestedset\NodeTrait;
  * @property bool $status
  * @property int $_lft
  * @property int $_rgt
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
- * @property null|\Carbon\Carbon $deleted_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property null|Carbon $deleted_at
  */
 class Category extends Model
 {
-    use HasUuidPrimary, Translatable, TranslatableLocales, SoftDeletes, NodeTrait, \Dominservice\MediaKit\Traits\HasMedia, \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor;
+    use \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor, \Dominservice\MediaKit\Traits\HasMedia, HasUuidPrimary, NodeTrait, SoftDeletes, Translatable, TranslatableLocales;
 
     protected $fillable = [
         'type',
@@ -46,7 +44,6 @@ class Category extends Model
     ];
 
     protected string $fileConfigKey = 'category';
-
 
     protected function casts(): array
     {
@@ -68,7 +65,7 @@ class Category extends Model
     /**
      * Get the parent id key name.
      *
-     * @return  string
+     * @return string
      */
     public function getParentIdName()
     {
@@ -78,7 +75,7 @@ class Category extends Model
     public function createdAt(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format')),
+            get: fn ($value) => Carbon::parse($value)->format(config('cms.date_format').' '.config('cms.time_format')),
             set: fn ($value) => $value,
         );
     }
@@ -86,29 +83,26 @@ class Category extends Model
     public function updatedAt(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format')),
+            get: fn ($value) => Carbon::parse($value)->format(config('cms.date_format').' '.config('cms.time_format')),
             set: fn ($value) => $value,
         );
     }
 
     public function contents()
     {
-        return $this->belongsToMany(Content::class
-            , config('cms.tables.content_categories')
-            , 'category_uuid'
-            , 'content_uuid'
+        return $this->belongsToMany(Content::class, config('cms.tables.content_categories'), 'category_uuid', 'content_uuid'
         );
     }
 
     public function video()
     {
-        return $this->belongsTo(CategoryFile::class, 'uuid', 'content_uuid')
+        return $this->belongsTo(CategoryFile::class, 'uuid', 'category_uuid')
             ->where('kind', 'video_avatar');
     }
 
     public function videoPoster()
     {
-        return $this->belongsTo(CategoryFile::class, 'uuid', 'content_uuid')
+        return $this->belongsTo(CategoryFile::class, 'uuid', 'category_uuid')
             ->where('kind', 'video_poster');
     }
 

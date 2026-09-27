@@ -2,15 +2,14 @@
 
 namespace Dominservice\LaravelCms\Models;
 
-
 use Astrotomic\Translatable\Translatable;
 use Carbon\Carbon;
 use Dominservice\LaravelCms\Traits\HasUuidPrimary;
 use Dominservice\LaravelCms\Traits\TranslatableLocales;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * @property string $uuid
@@ -21,9 +20,8 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $external_url
  * @property object|null $meta
  * @property int|null $sort
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
- *
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  * @property string $slug
  * @property string $name
  * @property string $sub_name
@@ -31,19 +29,18 @@ use Illuminate\Support\Facades\Storage;
  * @property string $meta_title
  * @property string $meta_keywords
  * @property string $meta_description
- *
  * @property string $avatar_path
  * @property string $video_path
  */
 class Content extends Model
 {
-    use HasUuidPrimary,
-        Translatable,
-        TranslatableLocales,
-        SoftDeletes,
+    use \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor,
+        \Dominservice\LaravelCms\Traits\HasContentLinks,
         \Dominservice\MediaKit\Traits\HasMedia,
-        \Dominservice\LaravelCms\Traits\DynamicAvatarAccessor,
-        \Dominservice\LaravelCms\Traits\HasContentLinks;
+        HasUuidPrimary,
+        SoftDeletes,
+        Translatable,
+        TranslatableLocales;
 
     protected string $fileConfigKey = 'content';
 
@@ -73,7 +70,7 @@ class Content extends Model
         return [
             'type' => config('cms.types.content'),
             'external_url' => 'string',
-            'meta'         => 'object',
+            'meta' => 'object',
         ];
     }
 
@@ -87,24 +84,18 @@ class Content extends Model
         return config('cms.tables.contents');
     }
 
-    /**
-     * @return Attribute
-     */
     public function createdAt(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format')),
+            get: fn ($value) => Carbon::parse($value)->format(config('cms.date_format').' '.config('cms.time_format')),
             set: fn ($value) => $value,
         );
     }
 
-    /**
-     * @return Attribute
-     */
     public function updatedAt(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => \Carbon\Carbon::parse($value)->format(config('cms.date_format') . ' ' . config('cms.time_format')),
+            get: fn ($value) => Carbon::parse($value)->format(config('cms.date_format').' '.config('cms.time_format')),
             set: fn ($value) => $value,
         );
     }
@@ -117,13 +108,16 @@ class Content extends Model
         return Attribute::make(
             get: function ($value) {
                 $value = is_string($value) ? trim($value) : $value;
+
                 return $value === '' ? null : $value;
             },
             set: function ($value) {
                 if (is_string($value)) {
                     $value = trim($value);
+
                     return $value === '' ? null : $value;
                 }
+
                 return $value ?: null;
             }
         );
@@ -131,18 +125,18 @@ class Content extends Model
 
     public function scopeWhereCategories($categories)
     {
-        if (!is_array($categories)) {
+        if (! is_array($categories)) {
             $categories = [$categories];
         }
 
         $this->whereHas('categories', function ($q) use ($categories) {
-            $q->whereIn(config('cms.tables.categories') .'.uuid', $categories)->orWhereIn('slug', $categories);
+            $q->whereIn(config('cms.tables.categories').'.uuid', $categories)->orWhereIn('slug', $categories);
         });
     }
 
-    public function parent(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function parent(): BelongsTo
     {
-        return $this->belongsTo(self::class, 'uuid', 'parent_uuid');
+        return $this->belongsTo(self::class, 'parent_uuid', 'uuid');
     }
 
     public function children()
@@ -152,10 +146,7 @@ class Content extends Model
 
     public function categories()
     {
-        return $this->belongsToMany(Category::class
-            , config('cms.tables.content_categories')
-            , 'content_uuid'
-            , 'category_uuid'
+        return $this->belongsToMany(Category::class, config('cms.tables.content_categories'), 'content_uuid', 'category_uuid'
         );
     }
 
@@ -187,5 +178,4 @@ class Content extends Model
         return $this->hasOne(ContentFile::class, 'content_uuid', 'uuid')
             ->where('kind', 'avatar');
     }
-
 }

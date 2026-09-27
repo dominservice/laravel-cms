@@ -2,24 +2,11 @@
 
 namespace Tests\Feature;
 
-use Dominservice\LaravelCms\ServiceProvider;
 use Illuminate\Support\ViewErrorBag;
-use Livewire\LivewireServiceProvider;
-use Orchestra\Testbench\TestCase;
+use Tests\TestCase;
 
 final class SchemaFieldRenderingTest extends TestCase
 {
-    /**
-     * @return array<class-string>
-     */
-    protected function getPackageProviders($app): array
-    {
-        return [
-            LivewireServiceProvider::class,
-            ServiceProvider::class,
-        ];
-    }
-
     public function test_it_renders_a_schema_driven_select_without_a_custom_view(): void
     {
         $view = $this->view('cms::livewire.admin.content.schema-field', [
