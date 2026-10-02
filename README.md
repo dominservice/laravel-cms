@@ -79,6 +79,7 @@ Main configuration lives in `config/cms.php`:
 - `cms.admin.prefix`
 - `cms.admin.route_name_prefix`
 - `cms.admin.middleware`
+- `cms.admin.components.*`
 - `cms.admin.layout.mode`
 - `cms.admin.layout.view`
 - `cms.admin.layout.section`
@@ -91,6 +92,22 @@ Layout integration supports three modes:
 - `component`: render inside a Blade component.
 
 This makes it easy to keep package logic inside the package, while styling the UI in the host project through published views.
+
+Applications may replace individual admin Livewire classes without duplicating the package routes. Every configured class must extend `Livewire\Component`; omitted keys keep the package implementation:
+
+```php
+'admin' => [
+    'components' => [
+        'content_index' => \App\Livewire\Cms\ContentIndex::class,
+        'content_form' => \App\Livewire\Cms\ContentForm::class,
+        'category_index' => \App\Livewire\Cms\CategoryIndex::class,
+        'category_form' => \App\Livewire\Cms\CategoryForm::class,
+        'settings_dashboard' => \App\Livewire\Cms\SettingsDashboard::class,
+    ],
+],
+```
+
+The content and category index classes expose `filterMappedItems()` as a protected extension hook. A host integration can therefore add allowlisted search and sorting while retaining section resolution, URLs and delete behavior from the package.
 
 ## Content Types, Blocks and Schemas
 

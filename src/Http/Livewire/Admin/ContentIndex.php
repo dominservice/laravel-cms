@@ -14,9 +14,13 @@ use Livewire\Component;
 class ContentIndex extends Component
 {
     public array $sections = [];
+
     public ?Category $category = null;
+
     public ?string $onlySectionKey = null;
+
     public ?string $onlyType = null;
+
     public string $search = '';
 
     public function mount(?Category $category = null): void
@@ -68,7 +72,7 @@ class ContentIndex extends Component
             })->all();
 
             $sections[] = [
-                'key' => 'category-' . $this->category->uuid,
+                'key' => 'category-'.$this->category->uuid,
                 'label' => __('cms::laravel_cms.category_with_name', ['name' => ($this->category->translate($locale)?->name ?? $this->category->uuid)]),
                 'columns' => config('cms.admin.content.default_columns', []),
                 'items' => $this->filterMappedItems($this->mapContentItems($items, ['key' => 'category'], $locale)),
@@ -77,6 +81,7 @@ class ContentIndex extends Component
             ];
 
             $this->sections = $sections;
+
             return;
         }
 
@@ -96,7 +101,7 @@ class ContentIndex extends Component
                 ->all();
 
             $sections[] = [
-                'key' => 'type-' . $this->onlyType,
+                'key' => 'type-'.$this->onlyType,
                 'label' => $this->onlyType,
                 'columns' => config('cms.admin.content.default_columns', []),
                 'items' => $this->filterMappedItems($this->mapContentItems($items, ['key' => 'type', 'type' => $this->onlyType], $locale)),
@@ -106,6 +111,7 @@ class ContentIndex extends Component
             ];
 
             $this->sections = $sections;
+
             return;
         }
 
@@ -137,10 +143,10 @@ class ContentIndex extends Component
     }
 
     /**
-     * @param array<int, array<string, mixed>> $items
+     * @param  array<int, array<string, mixed>>  $items
      * @return array<int, array<string, mixed>>
      */
-    private function filterMappedItems(array $items): array
+    protected function filterMappedItems(array $items): array
     {
         $search = trim($this->search);
         if ($search === '') {
@@ -187,7 +193,7 @@ class ContentIndex extends Component
                 'config_key' => $item['config_key'] ?? null,
                 'config_handle' => $item['key'] ?? null,
             ];
-            if (!empty($section['type_explicit'])) {
+            if (! empty($section['type_explicit'])) {
                 $query['type'] = $section['type'] ?? null;
             }
 
@@ -205,7 +211,7 @@ class ContentIndex extends Component
 
     private function columnValue(string $column, ?Content $model, mixed $translation, array $item): string
     {
-        if (!$model) {
+        if (! $model) {
             return '-';
         }
 
@@ -226,12 +232,12 @@ class ContentIndex extends Component
         $query = array_filter($query, static fn ($value) => $value !== null && $value !== '');
         $url = route($this->adminRoute('content.edit'), $content);
 
-        return $query ? $url . '?' . http_build_query($query) : $url;
+        return $query ? $url.'?'.http_build_query($query) : $url;
     }
 
     private function createUrl(?string $sectionKey, ?string $blockKey = null): ?string
     {
-        if (!$sectionKey) {
+        if (! $sectionKey) {
             return null;
         }
 
@@ -252,10 +258,10 @@ class ContentIndex extends Component
         }
 
         $params = ['section' => $section['key'] ?? null];
-        if (!empty($section['config_key'])) {
+        if (! empty($section['config_key'])) {
             $params['config_key'] = $section['config_key'];
         }
-        if (!empty($section['type_explicit'])) {
+        if (! empty($section['type_explicit'])) {
             $params['type'] = $section['type'] ?? null;
         }
 
@@ -271,13 +277,13 @@ class ContentIndex extends Component
         $params = [
             'section' => $section['key'] ?? null,
         ];
-        if (!empty($item['config_key'])) {
+        if (! empty($item['config_key'])) {
             $params['config_key'] = $item['config_key'];
         }
-        if (!empty($section['type_explicit'])) {
+        if (! empty($section['type_explicit'])) {
             $params['type'] = $section['type'] ?? null;
         }
-        if (!empty($item['key'])) {
+        if (! empty($item['key'])) {
             $params['config_handle'] = $item['key'];
         }
 
@@ -300,6 +306,7 @@ class ContentIndex extends Component
     private function adminRoute(string $name): string
     {
         $prefix = rtrim((string) config('cms.admin.route_name_prefix', 'cms.'), '.');
-        return $prefix === '' ? $name : $prefix . '.' . $name;
+
+        return $prefix === '' ? $name : $prefix.'.'.$name;
     }
 }

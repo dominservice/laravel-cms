@@ -4,19 +4,21 @@ namespace Dominservice\LaravelCms;
 
 use Dominservice\LaravelCms\Console\CmsMediaMigrateV4;
 use Dominservice\LaravelCms\Console\Commands\RedirectConfig;
-use Dominservice\LaravelCms\Http\Middleware\Redirects;
-use Dominservice\LaravelCms\Models\Redirect;
-use Dominservice\LaravelCms\Observers\RedirectObserver;
-use Dominservice\LaravelCms\Support\AdminUi;
 use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryForm;
 use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryIndex;
 use Dominservice\LaravelCms\Http\Livewire\Admin\ContentForm;
 use Dominservice\LaravelCms\Http\Livewire\Admin\ContentIndex;
 use Dominservice\LaravelCms\Http\Livewire\Admin\SettingsDashboard;
+use Dominservice\LaravelCms\Http\Middleware\Redirects;
+use Dominservice\LaravelCms\Models\Redirect;
+use Dominservice\LaravelCms\Observers\RedirectObserver;
+use Dominservice\LaravelCms\Support\AdminComponentResolver;
+use Dominservice\LaravelCms\Support\AdminUi;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider as BaseServiceProvider;
+use Livewire\Livewire;
 
 class ServiceProvider extends BaseServiceProvider
 {
@@ -24,8 +26,8 @@ class ServiceProvider extends BaseServiceProvider
 
     public function boot(Filesystem $filesystem, Router $router): void
     {
-        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'cms');
-        $this->loadTranslationsFrom(__DIR__ . '/../resources/lang', 'cms');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'cms');
+        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'cms');
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -37,7 +39,7 @@ class ServiceProvider extends BaseServiceProvider
         Redirect::observe(RedirectObserver::class);
 
         $this->publishes([
-            __DIR__ . '/../config/cms.php' => config_path('cms.php'),
+            __DIR__.'/../config/cms.php' => config_path('cms.php'),
         ], 'config');
 
         $this->publishes([
@@ -59,29 +61,44 @@ class ServiceProvider extends BaseServiceProvider
         ], 'migrations');
 
         $this->publishes([
-            __DIR__ . '/../resources/views' => resource_path('views/vendor/cms'),
+            __DIR__.'/../resources/views' => resource_path('views/vendor/cms'),
         ], 'views');
 
         $this->publishes([
-            __DIR__ . '/../resources/lang' => lang_path('vendor/cms'),
+            __DIR__.'/../resources/lang' => lang_path('vendor/cms'),
         ], 'lang');
 
         $router->prependMiddlewareToGroup('web', Redirects::class);
 
         if (config('cms.admin.enabled', true)) {
-            $this->loadRoutesFrom(__DIR__ . '/../routes/admin.php');
+            $this->loadRoutesFrom(__DIR__.'/../routes/admin.php');
         }
 
         if (config('cms.routes.enabled', false)) {
-            $this->loadRoutesFrom(__DIR__ . '/../routes/cms.php');
+            $this->loadRoutesFrom(__DIR__.'/../routes/cms.php');
         }
 
-        if (class_exists(\Livewire\Livewire::class)) {
-            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.content-index', ContentIndex::class);
-            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.content-form', ContentForm::class);
-            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.category-index', CategoryIndex::class);
-            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.category-form', CategoryForm::class);
-            \Livewire\Livewire::component('dominservice.laravel-cms.http.livewire.admin.settings-dashboard', SettingsDashboard::class);
+        if (class_exists(Livewire::class)) {
+            Livewire::component(
+                'dominservice.laravel-cms.http.livewire.admin.content-index',
+                AdminComponentResolver::resolve('content_index', ContentIndex::class),
+            );
+            Livewire::component(
+                'dominservice.laravel-cms.http.livewire.admin.content-form',
+                AdminComponentResolver::resolve('content_form', ContentForm::class),
+            );
+            Livewire::component(
+                'dominservice.laravel-cms.http.livewire.admin.category-index',
+                AdminComponentResolver::resolve('category_index', CategoryIndex::class),
+            );
+            Livewire::component(
+                'dominservice.laravel-cms.http.livewire.admin.category-form',
+                AdminComponentResolver::resolve('category_form', CategoryForm::class),
+            );
+            Livewire::component(
+                'dominservice.laravel-cms.http.livewire.admin.settings-dashboard',
+                AdminComponentResolver::resolve('settings_dashboard', SettingsDashboard::class),
+            );
         }
 
         view()->composer(['cms::admin.*', 'cms::layouts.*', 'cms::livewire.*'], function ($view) {
@@ -100,11 +117,11 @@ class ServiceProvider extends BaseServiceProvider
     protected function getMigrationFileName(Filesystem $filesystem, string $name): string
     {
         $this->lpMigration++;
-        $timestamp = now()->format('Y_m_d_Hi') . str_pad((string)$this->lpMigration, 2, "0", STR_PAD_RIGHT);
+        $timestamp = now()->format('Y_m_d_Hi').str_pad((string) $this->lpMigration, 2, '0', STR_PAD_RIGHT);
 
-        return Collection::make($this->app->databasePath() . DIRECTORY_SEPARATOR . 'migrations' . DIRECTORY_SEPARATOR)
-            ->flatMap(fn($path) => $filesystem->glob($path . '*' . $name . '.php'))
-            ->push($this->app->databasePath() . "/migrations/{$timestamp}_{$name}.php")
+        return Collection::make($this->app->databasePath().DIRECTORY_SEPARATOR.'migrations'.DIRECTORY_SEPARATOR)
+            ->flatMap(fn ($path) => $filesystem->glob($path.'*'.$name.'.php'))
+            ->push($this->app->databasePath()."/migrations/{$timestamp}_{$name}.php")
             ->first();
     }
 }

@@ -13,8 +13,11 @@ use Livewire\Component;
 class CategoryIndex extends Component
 {
     public array $sections = [];
+
     public ?string $onlySectionKey = null;
+
     public ?string $onlyType = null;
+
     public string $search = '';
 
     public function mount(): void
@@ -70,7 +73,7 @@ class CategoryIndex extends Component
                 ->all();
 
             $sections[] = [
-                'key' => 'type-' . $this->onlyType,
+                'key' => 'type-'.$this->onlyType,
                 'label' => $this->onlyType,
                 'columns' => config('cms.admin.category.default_columns', []),
                 'items' => $this->filterMappedItems($this->mapCategoryItems($items, ['key' => 'type', 'type' => $this->onlyType], $locale)),
@@ -79,6 +82,7 @@ class CategoryIndex extends Component
             ];
 
             $this->sections = $sections;
+
             return;
         }
 
@@ -107,10 +111,10 @@ class CategoryIndex extends Component
     }
 
     /**
-     * @param array<int, array<string, mixed>> $items
+     * @param  array<int, array<string, mixed>>  $items
      * @return array<int, array<string, mixed>>
      */
-    private function filterMappedItems(array $items): array
+    protected function filterMappedItems(array $items): array
     {
         $search = trim($this->search);
         if ($search === '') {
@@ -156,7 +160,7 @@ class CategoryIndex extends Component
                 'config_key' => $item['config_key'] ?? null,
                 'config_handle' => $item['key'] ?? null,
             ];
-            if (!empty($section['type_explicit'])) {
+            if (! empty($section['type_explicit'])) {
                 $query['type'] = $section['type'] ?? null;
             }
 
@@ -175,7 +179,7 @@ class CategoryIndex extends Component
 
     private function columnValue(string $column, ?Category $model, mixed $translation, array $item): string
     {
-        if (!$model) {
+        if (! $model) {
             return '-';
         }
 
@@ -196,7 +200,7 @@ class CategoryIndex extends Component
         $query = array_filter($query, static fn ($value) => $value !== null && $value !== '');
         $url = route($this->adminRoute('category.edit'), $category);
 
-        return $query ? $url . '?' . http_build_query($query) : $url;
+        return $query ? $url.'?'.http_build_query($query) : $url;
     }
 
     private function sectionCreateUrl(array $section): ?string
@@ -206,13 +210,13 @@ class CategoryIndex extends Component
         }
 
         $params = [];
-        if (!empty($section['group_key'])) {
+        if (! empty($section['group_key'])) {
             $params['section'] = $section['key'];
         }
-        if (!empty($section['config_key'])) {
+        if (! empty($section['config_key'])) {
             $params['config_key'] = $section['config_key'];
         }
-        if (!empty($section['type_explicit'])) {
+        if (! empty($section['type_explicit'])) {
             $params['type'] = $section['type'] ?? null;
         }
 
@@ -222,13 +226,13 @@ class CategoryIndex extends Component
     private function itemCreateUrl(array $section, array $item): string
     {
         $params = [];
-        if (!empty($section['group_key'])) {
+        if (! empty($section['group_key'])) {
             $params['section'] = $section['key'];
         }
-        if (!empty($item['config_key'])) {
+        if (! empty($item['config_key'])) {
             $params['config_key'] = $item['config_key'];
         }
-        if (!empty($section['type_explicit'])) {
+        if (! empty($section['type_explicit'])) {
             $params['type'] = $section['type'] ?? null;
         }
 
@@ -238,7 +242,8 @@ class CategoryIndex extends Component
     private function adminRoute(string $name): string
     {
         $prefix = rtrim((string) config('cms.admin.route_name_prefix', 'cms.'), '.');
-        return $prefix === '' ? $name : $prefix . '.' . $name;
+
+        return $prefix === '' ? $name : $prefix.'.'.$name;
     }
 
     private function normalizeTypeValue(mixed $type): string

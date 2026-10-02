@@ -1,5 +1,13 @@
 <?php
 
+use Dominservice\LaravelCms\Enums\CategoryType;
+use Dominservice\LaravelCms\Enums\ContentType;
+use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryForm;
+use Dominservice\LaravelCms\Http\Livewire\Admin\CategoryIndex;
+use Dominservice\LaravelCms\Http\Livewire\Admin\ContentForm;
+use Dominservice\LaravelCms\Http\Livewire\Admin\ContentIndex;
+use Dominservice\LaravelCms\Http\Livewire\Admin\SettingsDashboard;
+
 return [
     'date_format' => 'd/m/Y',
     'time_format' => 'H:i',
@@ -8,8 +16,8 @@ return [
     // Content/category types can be declared as enum classes or plain arrays.
     // You can override these in your app config to use custom enums.
     'types' => [
-        'content' => \Dominservice\LaravelCms\Enums\ContentType::class,
-        'category' => \Dominservice\LaravelCms\Enums\CategoryType::class,
+        'content' => ContentType::class,
+        'category' => CategoryType::class,
     ],
 
     'tables' => [
@@ -26,7 +34,7 @@ return [
 
         'content_links' => 'cms_content_links',
     ],
-    
+
     'disks' => [
         'category' => 'public',
         'content' => 'public',
@@ -179,74 +187,81 @@ return [
     ],
 
     'pages' => [
-        /**
-         * 'unique-id-for-cms-page' => [
-         *      'top_menu' => true,
-         *      'footer_menu' => false,
-         *      'category' => false,
-         *      'order' => 6,
-         *      'slug' => [
-         *          'pl' => 'slug-pl',
-         *          'en' => 'slug-en',
-         *      ],
-         *      'name' => [
-         *          'pl' => 'name-pl',
-         *          'en' => 'name-en',
-         *      ],
-         *      'pages' => [
-         *          'unique-id-for-cms-page' => [
-         *              'order' => 6,
-         *              'slug' => [
-         *                  'pl' => 'slug-pl',
-         *                  'en' => 'slug-en',
-         *              ],
-         *              'name' => [
-         *                  'pl' => 'name-pl',
-         *                  'en' => 'name-en',
-         *              ],
-         *          ],
-         *      ],
-         * ],
-         */
+    /**
+     * 'unique-id-for-cms-page' => [
+     *      'top_menu' => true,
+     *      'footer_menu' => false,
+     *      'category' => false,
+     *      'order' => 6,
+     *      'slug' => [
+     *          'pl' => 'slug-pl',
+     *          'en' => 'slug-en',
+     *      ],
+     *      'name' => [
+     *          'pl' => 'name-pl',
+     *          'en' => 'name-en',
+     *      ],
+     *      'pages' => [
+     *          'unique-id-for-cms-page' => [
+     *              'order' => 6,
+     *              'slug' => [
+     *                  'pl' => 'slug-pl',
+     *                  'en' => 'slug-en',
+     *              ],
+     *              'name' => [
+     *                  'pl' => 'name-pl',
+     *                  'en' => 'name-en',
+     *              ],
+     *          ],
+     *      ],
+     * ],
+     */
     ],
 
     'business_pages' => [
-        /**
-         * 'unique-id-for-cms-page' => [
-         *      'top_menu' => true,
-         *      'footer_menu' => false,
-         *      'category' => false,
-         *      'slug' => [
-         *          'pl' => 'slug-pl',
-         *          'en' => 'slug-en',
-         *      ],
-         *      'name' => [
-         *          'pl' => 'name-pl',
-         *          'en' => 'name-en',
-         *      ],
-         * ],
-         */
+    /**
+     * 'unique-id-for-cms-page' => [
+     *      'top_menu' => true,
+     *      'footer_menu' => false,
+     *      'category' => false,
+     *      'slug' => [
+     *          'pl' => 'slug-pl',
+     *          'en' => 'slug-en',
+     *      ],
+     *      'name' => [
+     *          'pl' => 'name-pl',
+     *          'en' => 'name-en',
+     *      ],
+     * ],
+     */
     ],
 
     'blog_pages' => [
-        /**
-         * 'unique-id-for-cms-page' => [
-         *      'slug' => [
-         *          'pl' => 'slug-pl',
-         *          'en' => 'slug-en',
-         *      ],
-         *      'name' => [
-         *          'pl' => 'name-pl',
-         *          'en' => 'name-en',
-         *      ],
-         * ],
-         */
+    /**
+     * 'unique-id-for-cms-page' => [
+     *      'slug' => [
+     *          'pl' => 'slug-pl',
+     *          'en' => 'slug-en',
+     *      ],
+     *      'name' => [
+     *          'pl' => 'name-pl',
+     *          'en' => 'name-en',
+     *      ],
+     * ],
+     */
     ],
 
     'admin' => [
         'enabled' => true,
         'prefix' => 'cms',
         'route_name_prefix' => 'cms.',
+        'components' => [
+            'content_index' => ContentIndex::class,
+            'content_form' => ContentForm::class,
+            'category_index' => CategoryIndex::class,
+            'category_form' => CategoryForm::class,
+            'settings_dashboard' => SettingsDashboard::class,
+        ],
         // settings|content.index|category.index
         'landing' => 'settings',
         'middleware' => ['web', 'auth'],
