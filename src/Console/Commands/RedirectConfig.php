@@ -2,8 +2,10 @@
 
 namespace Dominservice\LaravelCms\Console\Commands;
 
-use Dominservice\LaravelConfig\Config;
+use Dominservice\LaravelCms\Support\RedirectRepository;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class RedirectConfig extends Command
 {
@@ -19,15 +21,21 @@ class RedirectConfig extends Command
      *
      * @var string
      */
-    protected $description = 'Regenerate redirect config';
+    protected $description = 'Rebuild the redirect runtime cache';
 
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(RedirectRepository $redirects): int
     {
-        $value = \Dominservice\LaravelCms\Models\Redirect::whereNotNull('active_at')->get()->toArray();
-        (new Config())->set('cms.redirects', $value, true);
+        $redirects->rebuild();
+
+        if (Schema::hasTable('settings')) {
+            DB::table('settings')->where('key', 'cms.redirects')->delete();
+        }
+
+        config(['cms.redirects' => $redirects->records()]);
+
         return Command::SUCCESS;
     }
 }

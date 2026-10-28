@@ -14,6 +14,7 @@ use Dominservice\LaravelCms\Models\Redirect;
 use Dominservice\LaravelCms\Observers\RedirectObserver;
 use Dominservice\LaravelCms\Support\AdminComponentResolver;
 use Dominservice\LaravelCms\Support\AdminUi;
+use Dominservice\LaravelCms\Support\RedirectRepository;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Collection;
@@ -37,6 +38,10 @@ class ServiceProvider extends BaseServiceProvider
         }
 
         Redirect::observe(RedirectObserver::class);
+
+        config([
+            'cms.redirects' => $this->app->make(RedirectRepository::class)->records(),
+        ]);
 
         $this->publishes([
             __DIR__.'/../config/cms.php' => config_path('cms.php'),
@@ -112,6 +117,8 @@ class ServiceProvider extends BaseServiceProvider
             __DIR__.'/../config/cms.php',
             'cms'
         );
+
+        $this->app->singleton(RedirectRepository::class);
     }
 
     protected function getMigrationFileName(Filesystem $filesystem, string $name): string

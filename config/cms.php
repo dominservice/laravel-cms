@@ -35,6 +35,8 @@ return [
         'content_links' => 'cms_content_links',
     ],
 
+    'redirects_cache_path' => null,
+
     'disks' => [
         'category' => 'public',
         'content' => 'public',
