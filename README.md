@@ -1,19 +1,17 @@
-<p align="center">
-  <img src="docs/logo.png" alt="Dominservice Laravel CMS" width="600" />
-</p>
+# Laravel CMS
 
-<h1 align="center">dominservice/laravel-cms</h1>
+<img src="docs/dominpress-logo.webp" alt="Laravel CMS logo showing a page with three content blocks" width="128" height="128">
 
-<p align="center">
-  Reusable Laravel CMS for multilingual pages, blocks, categories and media-driven content structures.
-</p>
+Laravel CMS adds a configurable admin panel for multilingual pages, reusable content blocks, categories and media to a Laravel application.
+
+Developed by Mateusz Domin at [Domin Software](https://dominsoftware.it/). This package provides the content models, admin features and extension points used by [DominPress](https://dominsoftware.it/dominpress). The host application supplies the public-facing design and its business-specific views.
 
 <p align="center">
   <a href="https://packagist.org/packages/dominservice/laravel-cms"><img src="https://img.shields.io/packagist/v/dominservice/laravel-cms.svg" alt="Packagist"></a>
   <a href="https://packagist.org/packages/dominservice/laravel-cms/stats"><img src="https://img.shields.io/packagist/dt/dominservice/laravel-cms.svg" alt="Downloads"></a>
-  <a href="#"><img src="https://img.shields.io/badge/PHP-8.3%2B-777bb3" alt="PHP 8.3+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Laravel-13-ff2d20" alt="Laravel 13"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Livewire-4-fb70a9" alt="Livewire 4"></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/PHP-8.3%2B-777bb3" alt="PHP 8.3+"></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/Laravel-13.32%2B-ff2d20" alt="Laravel 13.32+"></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/Livewire-4.4%2B-fb70a9" alt="Livewire 4.4+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
@@ -47,6 +45,7 @@ It gives you:
 The 5.x package line targets the current DominPress application stack:
 
 - PHP 8.3 or newer,
+- the PHP GD extension,
 - Laravel 13.32 or newer,
 - Livewire 4.4 or newer,
 - `kalnoy/nestedset` 7.x.
@@ -68,6 +67,10 @@ php artisan vendor:publish --provider="Dominservice\MediaKit\MediaKitServiceProv
 
 php artisan migrate
 ```
+
+## Quick Start
+
+After running the migrations, sign in to the host application with a user authorized to access the CMS. Open `/cms/content` using the default admin prefix. The content index lists the sections configured in `cms.admin.content.sections`. Configure a section or block in `config/cms.php` using the example under [Content Types, Blocks and Schemas](#content-types-blocks-and-schemas), then reopen the index to see the section and open its content form.
 
 ## Admin Panel
 
@@ -296,6 +299,16 @@ When upgrading existing projects:
 - if the host application customizes `Livewire::setUpdateRoute()`, update its callback to accept both `$handle` and `$path`, then register the route using the hash-aware `$path` supplied by Livewire 4,
 - clear application caches after updating the package and run the host application's CMS and browser-facing regression tests.
 
+## Support
+
+Report package issues on [GitHub](https://github.com/dominservice/laravel-cms/issues).
+
+If this package helps you, you can buy me a coffee to support its maintenance.
+
+[![Buy me a coffee on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/dominservice)
+
+<a href="https://dominsoftware.it/"><img src="docs/logo.webp" alt="Domin Software" width="180"></a>
+
 ## License
 
-MIT
+[MIT](LICENSE)

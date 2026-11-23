@@ -1,17 +1,22 @@
 {
   "name": "dominservice/laravel-cms",
   "type": "library",
-  "description": "Laravel CMS Backend",
-  "keywords": ["laravel", "cms", "manager"],
+  "description": "Laravel CMS for multilingual pages, reusable content blocks, categories and media in a configurable admin panel.",
+  "keywords": ["laravel", "cms", "multilingual", "livewire", "content-management"],
   "homepage": "https://github.com/dominservice/laravel-cms",
   "license": "MIT",
   "authors": [
     {
-      "name": "dominservice",
-      "email": "biuro@dso.biz.pl",
-      "role": "Developer"
+      "name": "Mateusz Domin",
+      "email": "biuro@dominsoftware.it",
+      "role": "Developer",
+      "homepage": "https://dominsoftware.it/"
     }
   ],
+  "support": {
+    "source": "https://github.com/dominservice/laravel-cms",
+    "issues": "https://github.com/dominservice/laravel-cms/issues"
+  },
   "require": {
     "php": "^8.3",
     "ext-gd": "*",
